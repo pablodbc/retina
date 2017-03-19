@@ -1,0 +1,27 @@
+# Probar que ocurre al anidar más de dos bloques with.
+program
+  with
+      number i;
+      number j = 78;
+  do
+      i = 27;
+        with
+          boolean i;
+        do
+          i = true;
+            with
+                number z = j + 1;
+                boolean i, a, b;
+            do
+                a = z > j;
+                with
+                    number i, j;
+                do
+                    i = 5;
+                    j = 7 * i * (2 + 4);
+                end;
+            end;
+        end;
+      j = 78 + i;
+  end;
+end;

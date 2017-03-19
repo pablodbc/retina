@@ -1,0 +1,9 @@
+# Probar que no pueda usarse la variable del ciclo for en sus guardias.
+program
+    with
+    do
+        for i from 1 to 100 + i do
+            j = j + 2;
+        end;
+    end;
+end;

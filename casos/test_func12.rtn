@@ -1,0 +1,29 @@
+# Probar que pueda llamarse una función dentro de otra.
+func pred(number n) -> number
+begin
+    return n-1;
+end;
+
+func factorial(number n) -> number
+begin
+    if n==1 or n==0 then
+        return 1;
+    else
+        return (factorial(pred(n)));
+    end;   
+end;
+
+program
+  with
+      number i;
+      number j = 78;
+  do
+      i = factorial(4);
+        with
+          boolean i;
+        do
+          i = true;
+        end;
+      j = 78 + i;
+  end;
+end;

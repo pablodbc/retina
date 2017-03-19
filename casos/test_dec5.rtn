@@ -1,0 +1,19 @@
+# Probar que no pueda usarse una variable del alcance anterior declarando una con nombre similar y tipo distinto.
+func plus(number op1, number op2) -> number
+begin
+    return op1 + op2;
+end;
+program
+  with
+      number i = 5;
+      number j = 78 + plus(4, 3);
+  do
+      i = plus(3,2);
+        with
+          number i = i + 3;
+        do
+          i = true;
+        end;
+      j = 78 + i;
+  end;
+end;

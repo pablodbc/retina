@@ -1,0 +1,32 @@
+# Probar error cuando no hay instrucción de retorno y se espera una.
+func plus(number op1, number op2) -> number
+begin
+  with
+      number i;
+      number j = 78 + plus(4, 3);
+  do
+      i = plus(3,2);
+        with
+          boolean i;
+          
+        do
+          i = true and false;
+          return 5;
+        end;
+      j = 78 + i;
+  end;
+end;
+program
+  with
+      number i;
+      number j = 78 + plus(4, 3);
+  do
+      i = plus(3,2);
+        with
+          boolean i;
+        do
+          i = true and false;
+        end;
+      j = 78 + i;
+  end;
+end;

@@ -1,0 +1,15 @@
+# Probar funciones de dibujo.
+program
+  with
+  do
+    home();
+    openeye();
+    closeeye();
+    forward(3);
+    backward(4);
+    rotatel(23);
+    rotater(132);
+    setposition(3,1);
+    arc(2,4);
+  end;
+end;

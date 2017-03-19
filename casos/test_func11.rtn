@@ -1,0 +1,25 @@
+# Probar que las funciones recursivas puedan usarse correctamente.
+func factorial(number n) -> number
+begin
+    if n==1 or n==0 then
+        return 1;
+    else
+        return (factorial(n-1));
+    end;   
+end;
+
+program
+  with
+      number i;
+      number j = 78;
+  do
+      i = factorial(4);
+        with
+          boolean i;
+        do
+          i = true;
+          return i;
+        end;
+      j = 78 + i;
+  end;
+end;

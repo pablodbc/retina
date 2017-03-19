@@ -1,0 +1,18 @@
+# Probar que no arroje el error de falta de return en funciones Void y que arrojen error al usarse en expresiones.
+func plus(number op1, number op2)
+begin
+end;
+program
+  with
+      number i;
+      number j = 78 + plus(4, 3);
+  do
+      i = plus(3,2);
+        with
+          boolean i;
+        do
+          i = true and plus(1,4);
+        end;
+      j = 78 + i;
+  end;
+end;

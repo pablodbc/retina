@@ -1,0 +1,71 @@
+
+#funciones
+func circle(number radio)
+begin
+    arc(360, radio);
+end;
+
+func plus(number op1, number op2) -> number
+begin
+    return op1 + op2;
+    for j from 1.5 to 4.5
+      do
+            write j, " ";
+      end;
+      for j from 132 to 786.8 by fdsa
+      do
+          fdsa = 43214.4321;
+          return 78;
+      end;
+      
+end;
+
+#programa principal
+program
+  with
+      number i;
+      boolean x, y, z;
+      number n = 20;
+  do
+      i = 27;
+      abc = 78;
+  end;
+;
+;
+;
+;
+  if
+      true
+  then
+      asdf = 785;
+      yuue = 123;
+      do = 8;
+  end;
+  while
+    fdsa or true and x == true or fdsa and fdsaf and f and  (fdsa or not not not j) or false 
+  do
+    dsfjfa = 7 == 8;
+    writeln "542", 5432, fdsafa;
+    read fdsaf;
+    write "dsaf", "fdsafda\n", "fdsa";
+    fdsaf = 7*(5+6) + 543*2 + 432 + ---6;
+  end;
+  if
+      7+8 == 20
+  then
+      fdsasa = 2846;
+      fds = 18;
+  else
+      with
+        boolean tyui;
+      do
+        rew = 7+5;
+        repeat 5 times
+          x = x + 1;
+          write "fdsa", 7+5, fdsas;
+          writeln "fdsaf", 10-6*7, fds;
+        rew = 876;
+        end;
+      end;
+  end;
+end;

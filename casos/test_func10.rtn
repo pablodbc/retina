@@ -1,0 +1,16 @@
+# Probar que ocurre al usar una función no declarada como instrucción.
+program
+  with
+      number i;
+      number j = 78;
+  do
+      i = 27;
+        with
+          boolean i;
+        do
+          i = true;
+          hola(2);
+        end;
+      j = 78 + i;
+  end;
+end;
