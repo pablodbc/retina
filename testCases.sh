@@ -4,7 +4,7 @@ rm resultados errores 2> /dev/null
 touch resultados
 touch errores
 echo "Se han creado 2 archivos: resultados y errores"
-for i in casos/*.rtn 
+for i in casos/lilue/*.rtn 
 do 
 	echo "$i" | tee -a resultados  errores > /dev/null
 	echo | tee -a resultados  errores > /dev/null
