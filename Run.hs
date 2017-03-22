@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-module Context where
+module Run where
 import qualified Lexer
 import qualified Stdout as Out
 import qualified Grammar 
@@ -10,12 +10,12 @@ import Control.Exception as E
 import Data.Typeable as T
 import Data.List
 
-data ContextError = ContextError String
+data RuntimeError = RuntimeError String
     deriving (T.Typeable)
 
-instance E.Exception ContextError
-instance Show ContextError where
-    show (ContextError s) = "Error de Contexto: " ++ s
+instance E.Exception RuntimeError
+instance Show RuntimeError where
+    show (RuntimeError s) = "Error durante Corrida: " ++ s
 
 data CompType = Dynamic | Constant deriving (Eq,Show,Ord)
 
@@ -43,7 +43,7 @@ data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], funDecl :
 data FoundSym = FoundSym Type ValCalc Int deriving (Eq,Show,Ord)
 
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
-type ConMonad = RWS String String State
+type RunMonad = RWS String String State
 
 initialState = State M.empty [] None 0
 
@@ -51,8 +51,14 @@ initialState = State M.empty [] None 0
 modifyBoolValCalc :: (Bool -> Bool) -> ValCalc -> ValCalc
 modifyBoolValCalc f (CBoolean b) = CBoolean (f b)
 
+operateBoolValCalc :: (Bool -> Bool -> Bool) -> ValCalc -> ValCalc -> ValCalc
+operateBoolValCalc f (CBoolean a) (CBoolean b) = CBoolean (f a b)
+
 modifyDoubleValCalc :: (Double -> Double) -> ValCalc -> ValCalc
 modifyDoubleValCalc f (CNumber n) = CNumber (f n)
+
+operateDoubleValCalc :: (Double -> Double -> Double) -> ValCalc -> ValCalc -> ValCalc
+operateDoubleValCalc f (CNumber n1) (CNumber n2) = CNumber (f n1 n2)
 
 -- Number Handlers
 numberConversionHandler :: (RealFrac a, Integral b) => a -> b
