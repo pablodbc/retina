@@ -43,11 +43,11 @@ data TurtleState = TurtleState {
 turtleStart :: TurtleState
 turtleStart = TurtleState vector2DZero vector2DZero vector2DZero 0.0 [(Point vector2DZero)] True
 
-eps :: Double
-eps = sin pi
+epsilon :: Double
+epsilon = sin pi
 
 near :: Double -> Double -> Bool
-near x y = abs(x - y) <= eps
+near x y = abs(x - y) <= epsilon
 
 conversionConstant :: Double
 conversionConstant = pi / 180.0
@@ -110,6 +110,39 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 
 backward :: TurtleState -> Double -> TurtleState
 backward st dist = forward st (-dist)
+
+
+
+-- Graphics
+
+-- Funciones balancedWord y bla tomadas de roguebasin. 
+-- | See <http://roguebasin.roguelikedevelopment.org/index.php/Digital_lines>.
+balancedWord :: Int -> Int -> Int -> [Int]
+balancedWord p q eps | eps + p < q = 0 : balancedWord p q (eps + p)
+balancedWord p q eps               = 1 : balancedWord p q (eps + p - q)
+ 
+-- | Bresenham's line algorithm.
+-- Includes the first point and goes through the second to infinity.
+-- See http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Haskell
+bla :: (Int, Int) -> (Int, Int) -> [(Int, Int)]
+bla (x0, y0) (x1, y1) =
+  let (dx, dy) = (x1 - x0, y1 - y0)
+      xyStep b (x, y) = (x + signum dx,     y + signum dy * b)
+      yxStep b (x, y) = (x + signum dx * b, y + signum dy)
+      (p, q, step) | abs dx > abs dy = (abs dy, abs dx, xyStep)
+                   | otherwise       = (abs dx, abs dy, yxStep)
+      walk w xy = xy : walk (tail w) (step (head w) xy)
+  in  walk (balancedWord p q 0) (x0, y0)
+
+
+linePoints :: Vector2D -> Vector2D -> [(Int, Int)]
+linePoints a b
+	| a' <= b' = takeWhile (<= b') (bla a' b')
+	| otherwise = takeWhile (<= a') (bla b' a')
+	where
+		a' = (x a, y a)
+		b' = (x b, y b)
+
 
 
 -- data TurtleMap = TurtleMap {
