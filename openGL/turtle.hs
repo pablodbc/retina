@@ -2,6 +2,34 @@ module Turtle where
 import qualified Data.Map.Strict as M
 import System.IO 
 
+-- Math
+
+epsilon :: Double
+epsilon = sin pi
+
+near :: Double -> Double -> Bool
+near x y = abs(x - y) <= epsilon
+
+conversionConstant :: Double
+conversionConstant = pi / 180.0
+
+toRadians :: Double -> Double
+toRadians x = x * conversionConstant
+
+radAdd :: Double -> Double -> Double
+radAdd x y 
+	| near a circle = 0
+	| a >= circle = a - circle
+	| near a 0 = 0
+	| a < 0 = a + circle
+	| otherwise = a
+	where 
+		a = x + y
+		circle = 2 * pi
+
+
+-- 2D Vector
+
 data Vector2D = Vector2D {x :: Int , y :: Int}
  
 instance Show Vector2D where
@@ -35,6 +63,8 @@ specialMax (Vector2D x1 y1) (Vector2D x2 y2) = Vector2D (max x1 x2) (max y1 y2)
 vector2DZero :: Vector2D
 vector2DZero = Vector2D 0 0
 
+-- Turtle State
+
 data Movement = Point Vector2D |
 				Line Vector2D Vector2D
 
@@ -49,29 +79,6 @@ data TurtleState = TurtleState {
 
 turtleStart :: TurtleState
 turtleStart = TurtleState vector2DZero vector2DZero vector2DZero 0.0 [(Point vector2DZero)] True
-
-epsilon :: Double
-epsilon = sin pi
-
-near :: Double -> Double -> Bool
-near x y = abs(x - y) <= epsilon
-
-conversionConstant :: Double
-conversionConstant = pi / 180.0
-
-toRadians :: Double -> Double
-toRadians x = x * conversionConstant
-
-radAdd :: Double -> Double -> Double
-radAdd x y 
-	| near a circle = 0
-	| a >= circle = a - circle
-	| near a 0 = 0
-	| a < 0 = a + circle
-	| otherwise = a
-	where 
-		a = x + y
-		circle = 2 * pi
 
 
 -- Turtle Movement
