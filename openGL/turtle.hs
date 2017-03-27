@@ -1,5 +1,6 @@
 module Turtle where
-import qualified Data.Map.Strict as M 
+import qualified Data.Map.Strict as M
+import System.IO 
 
 data Vector2D = Vector2D {x :: Int , y :: Int}
  
@@ -24,6 +25,12 @@ vFlip a = a <**> (-1)
 
 (<->) :: Vector2D -> Vector2D -> Vector2D
 a <-> b = a <+> (vFlip b)
+
+specialMin :: Vector2D -> Vector2D -> Vector2D
+specialMin (Vector2D x1 y1) (Vector2D x2 y2) = Vector2D (min x1 x2) (min y1 y2)
+
+specialMax :: Vector2D -> Vector2D -> Vector2D
+specialMax (Vector2D x1 y1) (Vector2D x2 y2) = Vector2D (max x1 x2) (max y1 y2)
 
 vector2DZero :: Vector2D
 vector2DZero = Vector2D 0 0
@@ -66,6 +73,9 @@ radAdd x y
 		a = x + y
 		circle = 2 * pi
 
+
+-- Turtle Movement
+
 home :: TurtleState -> TurtleState
 home st = TurtleState vector2DZero (maxPos st) (minPos st) (angle st) (movs st) (eye st)
 
@@ -87,8 +97,8 @@ setPosition :: TurtleState -> Double -> Double -> TurtleState
 setPosition st x y = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		newPos = Vector2D (round x) (round y)
-		newMax = max newPos (maxPos st)
-		newMin = min newPos (minPos st)
+		newMax = specialMax newPos (maxPos st)
+		newMin = specialMin newPos (minPos st)
 		newMovs = 
 			if (eye st) then 
 				(Point newPos) : (movs st) 
@@ -100,8 +110,8 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		currPos = (curPos st)
 		newPos = (Vector2D (round (dist * cos(angle st))) (round (dist * sin(angle st)))) <+> currPos
-		newMax = max newPos (maxPos st)
-		newMin = min newPos (minPos st)
+		newMax = specialMax newPos (maxPos st)
+		newMin = specialMin newPos (minPos st)
 		newMovs = 
 			if (eye st) then 
 				(Line currPos newPos) : (movs st) 
@@ -110,7 +120,6 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 
 backward :: TurtleState -> Double -> TurtleState
 backward st dist = forward st (-dist)
-
 
 
 -- Graphics
@@ -143,19 +152,53 @@ linePoints a b
 		a' = (x a, y a)
 		b' = (x b, y b)
 
+normWorldSpace :: Vector2D -> Vector2D -> Vector2D
+normWorldSpace mini a = a <-> mini
 
+viewSpaceMin :: Vector2D -> Vector2D -> Vector2D
+viewSpaceMin mini maxi = normWorldSpace mini (Vector2D (x mini) (y maxi)) 
 
--- data TurtleMap = TurtleMap {
--- 					curPos :: Vector2D,
--- 					maxPos :: Vector2D, 
--- 					minPos :: Vector2D, 
--- 					angle :: Double, 
--- 					worldSpace :: M.Map (Int, Int) Bool, 
--- 					eye :: Bool
--- 				}
+toViewSpace :: Vector2D -> Vector2D -> Vector2D
+toViewSpace (Vector2D x0 y0) (Vector2D x y) = Vector2D (x - x0) (y0 - y)
 
--- turtleStart = TurtleMap vector2DZero vector2DZero vector2DZero 0.0 M.empty True
+runMovements :: (Vector2D -> Vector2D) -> M.Map (Int, Int) Bool -> [Movement] -> M.Map (Int, Int) Bool
+runMovements _ ma [] = ma
+runMovements f ma ((Point a):arr) = runMovements f newMa arr
+	where 
+		aux = f a
+		newMa = M.insert (x aux, y aux) True ma
+runMovements f ma ((Line a b):arr) = runMovements f newMa arr
+	where 
+		aux = linePoints (f a) (f b)
+		newMa = foldr (\x -> M.insert x True) ma aux 
 
-main :: IO ()
-main = do
-  return ()
+showRow ::  M.Map (Int, Int) Bool -> Int -> Int -> String
+showRow ma width r = res ++ "\n"
+	where
+		points = zip (takeWhile (<= width) [0..]) (repeat r)
+		row2String :: (Int, Int) -> String
+		row2String pos =
+			case M.lookup pos ma of
+				Nothing -> 		"0 "
+				(Just False) -> "0 "
+				(Just True) -> 	"1 "
+		res = foldr (++) "" (map row2String points) 
+
+showRows :: M.Map (Int, Int) Bool -> Int -> Int -> String
+showRows ma width height = (show (width+1)) ++ " " ++ (show (height+1)) ++ "\n" ++ res
+	where
+		rows = takeWhile (<= height) [0..]
+		res = foldr (++) "" (map (showRow ma width) rows) 
+
+showTurtle :: TurtleState -> String
+showTurtle st = "P1\n# Made by Christian Oliveros & Pablo Betancourt\n" ++ res
+	where
+		minView = viewSpaceMin (minPos st) (maxPos st)
+		f = (toViewSpace minView) . (normWorldSpace (minPos st))
+		viewMap = runMovements f M.empty (movs st)
+		width = (x $ f (maxPos st))
+		height =(y $ f (minPos st))
+		res = showRows viewMap width height
+
+drawTurtle :: TurtleState -> IO ()
+drawTurtle st = writeFile "retina.pbm" (showTurtle st)
