@@ -1,7 +1,8 @@
 module Turtle where
 import qualified Data.Map.Strict as M
 import System.IO 
-
+import Data.Fixed
+import qualified Circle as C
 -- Math
 
 epsilon :: Double
@@ -63,6 +64,19 @@ specialMax (Vector2D x1 y1) (Vector2D x2 y2) = Vector2D (max x1 x2) (max y1 y2)
 vector2DZero :: Vector2D
 vector2DZero = Vector2D 0 0
 
+toVector2D :: C.Point -> Vector2D
+toVector2D (x, y) = Vector2D x y
+
+betweenAngles :: Vector2D -> Vector2D -> Double -> Double -> Bool
+betweenAngles c a s f
+	| ((y circlePoint) < 0) = (start <= (angle + (2*pi))) && ((angle + (2*pi)) <= end)
+	| otherwise = (start <= angle) && (angle <= end)
+	where
+		start = min s f
+		end = max s f
+		circlePoint = a <-> c
+		angle = atan2 (fromIntegral(y circlePoint)) (fromIntegral(x circlePoint))
+
 -- Turtle State
 
 data Movement = Point Vector2D |
@@ -100,12 +114,43 @@ rotateLeft st dg = TurtleState (curPos st) (maxPos st) (minPos st) newAngle (mov
 rotateRight :: TurtleState -> Double -> TurtleState
 rotateRight st dg = rotateLeft st (-dg)
 
+insertPoint :: TurtleState -> Vector2D -> TurtleState
+insertPoint st newPos = TurtleState (curPos st) newMax newMin (angle st) newMovs (eye st)
+	where
+		newMax = 
+			if (eye st) then 
+				specialMax newPos (maxPos st)
+			else
+				(maxPos st)
+		newMin = 
+			if (eye st) then 
+				specialMin newPos (minPos st)
+			else
+				(minPos st)
+		newMovs = 
+			if (eye st) then 
+				(Point newPos) : (movs st) 
+			else 
+				(movs st)
+
+insertPoints :: TurtleState -> [Vector2D] -> TurtleState
+insertPoints st [] = st
+insertPoints st (x:xs) = insertPoints (insertPoint st x) xs
+
 setPosition :: TurtleState -> Double -> Double -> TurtleState
 setPosition st x y = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		newPos = Vector2D (round x) (round y)
-		newMax = specialMax newPos (maxPos st)
-		newMin = specialMin newPos (minPos st)
+		newMax = 
+			if (eye st) then 
+				specialMax newPos (maxPos st)
+			else
+				(maxPos st)
+		newMin = 
+			if (eye st) then 
+				specialMin newPos (minPos st)
+			else
+				(minPos st)
 		newMovs = 
 			if (eye st) then 
 				(Point newPos) : (movs st) 
@@ -117,8 +162,16 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		currPos = (curPos st)
 		newPos = (Vector2D (round (dist * cos(angle st))) (round (dist * sin(angle st)))) <+> currPos
-		newMax = specialMax newPos (maxPos st)
-		newMin = specialMin newPos (minPos st)
+		newMax = 
+			if (eye st) then 
+				specialMax newPos (maxPos st)
+			else
+				(maxPos st)
+		newMin = 
+			if (eye st) then 
+				specialMin newPos (minPos st)
+			else
+				(minPos st)
 		newMovs = 
 			if (eye st) then 
 				(Line currPos newPos) : (movs st) 
@@ -127,6 +180,27 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 
 backward :: TurtleState -> Double -> TurtleState
 backward st dist = forward st (-dist)
+
+arc :: TurtleState -> Double -> Double -> TurtleState
+arc st an r
+	| not (eye st) = st
+	| otherwise = newSt
+	where
+		currPos = (curPos st)
+		realAn = abs (toRadians an)
+		realR = round r
+		mid = (realAn/2)
+		start = radAdd (angle st) (-mid)
+		end = radAdd (angle st) mid
+		filterFun 
+			| realAn >= 2 * pi  || near realAn (2* pi) = (\_ -> True)
+			| near realAn 0 = (\_ -> False)
+			| start < end = (\x -> betweenAngles currPos x start end)
+			| otherwise = (\x -> (betweenAngles currPos x start (2*pi)) || (betweenAngles currPos x 0 end) )
+
+		points = (map toVector2D (C.generateCirclePoints (x currPos, y currPos) realR))
+		pointsF = currPos : (filter filterFun points)
+		newSt = insertPoints st pointsF
 
 
 -- Graphics
