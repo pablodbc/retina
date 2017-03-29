@@ -174,7 +174,10 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 				(minPos st)
 		newMovs = 
 			if (eye st) then 
-				(Line currPos newPos) : (movs st) 
+				if (near dist 0) then
+					(Point currPos) : (movs st)
+				else
+					(Line currPos newPos) : (movs st) 
 			else 
 				(movs st)
 
