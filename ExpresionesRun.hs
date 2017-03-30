@@ -304,53 +304,22 @@ anaExpr (Out.Divex e1 e2 p) = do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
                                     ++ (Out.printPos p)
                                     ++ " en Operacion '/', division entre 0")
-        (Run.CNumber n2) -> return (Run.modifyDoubleValCalc (/n2) r1)
+        (Run.CNumber n2) -> return (Run.operateDoubleValCalc (/) r1 r2)
 
 
 
 anaExpr (Out.Modex e1 e2 p) = do
-    anaExpr e1
-    st <- get
-    let et1 = topTable $ tablas st
-    case et1 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion '%', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando izquierdo")
-        Run.ExprTable Run.Number c n -> do
-            put $ modifyTable popTable st
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
-
-    anaExpr e2
-    st <- get
-    let et2 = topTable $ tablas st
-    case et2 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion '%', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando derecho")
-        Run.ExprTable Run.Number Run.Dynamic n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-            return ()
-        Run.ExprTable Run.Number c (Run.CNumber 0) -> do
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                        ++ (Out.printPos p)
-                                                        ++ " en Operacion '%', division entre 0")
-        Run.ExprTable Run.Number c n -> do
-            case et1 of
-                Run.ExprTable Run.Number Run.Dynamic n1-> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-                    return ()
-                Run.ExprTable Run.Number c (Run.CNumber n1) -> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number c (modifyDoubleValCalc (\x -> modex n1 x) n)))
-                    return ()
-
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
+    r1 <- anaExpr e1
+    r2 <- anaExpr e2
+    case r2 of
+        (Run.CNumber 0) -> do
+            throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
+                                    ++ (Out.printPos p)
+                                    ++ " en Operacion '%', division entre 0")
+        (Run.CNumber n2) -> do
+            case n2 > 0 of
+                True -> return $ Run.operateDoubleValCalc modex r1 r2
+                False -> return $ Run.modifyDoubleValCalc ((-1)*) $ Run.operateDoubleValCalc modex r1 r2
 
 anaExpr (Out.Div e1 e2 p) = do
     anaExpr e1
