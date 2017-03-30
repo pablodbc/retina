@@ -92,7 +92,7 @@ data TurtleState = TurtleState {
 }
 
 turtleStart :: TurtleState
-turtleStart = TurtleState vector2DZero vector2DZero vector2DZero 0.0 [(Point vector2DZero)] True
+turtleStart = TurtleState vector2DZero vector2DZero vector2DZero (pi/2) [(Point vector2DZero)] True
 
 
 -- Turtle Movement
