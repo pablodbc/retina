@@ -2,7 +2,8 @@ module ExpresionesRun where
 import qualified Lexer as Lexer
 import Stdout as Out
 import qualified Grammar 
-import Data.Map.Lazy as M 
+import Data.Map.Lazy as M
+import Data.Fixed as Fx 
 import Control.Monad.RWS
 import Run as Run
 import Control.Exception
@@ -181,37 +182,26 @@ anaFuncion (FuncionSA lt) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
-    case Run.findFun s (funcs st) of
-        Nothing -> throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en llamado a funcion no declarada: " ++ s)
-        Just f -> do
-            case f of
-                FunProto t _ 0 -> do
-                    put ( modifyTable (pushTable (Run.FuncionTable t)) st )
-                    return ()
-                _ -> throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " funcion: " ++ s ++ " esperaba argumentos")
-
+    let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
+    mapM_ runInstruccion $ instrucciones f
+    st <- get
+    case retVal $ curFun st of
+        Nothing -> do
+            throw $ RunError ("Cerca de la siguiente posicion "
+                                ++ (Out.printPos p)
+                                ++ " Se esperaba un valor de retorno.")
+        Just v -> do 
+            modify(modifyHandler $ backToNone)
+            return v
 anaFuncion (FuncionCA lt xprs) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
-    case Run.findFun s (funcs st) of
-        Nothing -> throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en llamado a funcion no declarada: " ++ s)
-        Just f -> do
-            case f of
-                FunProto t _ 0 -> do
-                    throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " funcion: " ++ s ++ " no esperaba argumentos")
-                FunProto t a i -> do
-                    anaArgs a xprs p s
-                    put ( modifyTable (pushTable (Run.FuncionTable t)) st )
-                    return ()
+    let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
+    
+        anaArgs a xprs p s
+        put ( modifyTable (pushTable (Run.FuncionTable t)) st )
+        return ()
 
 anaArgs :: [Type] -> [Expr] -> Lexer.AlexPosn -> String -> Run.RunMonad ()
 anaArgs [] [] _ _= do
@@ -235,7 +225,7 @@ anaArgs (a:args) (x:xprs) p s = do
                                             ++ (Out.printPos p)
                                             ++ " funcion: " ++ s ++ " presenta un desajuste de tipos")
 
-anaExpr :: Out.Expr -> Run.RunMonad Run.ValCalc
+anaExpr :: Out.Expr -> RunMonad Run.ValCalc
 anaExpr (Out.Or e1 e2 p) = do
     r1 <- anaExpr e1
     r2 <- anaExpr e2
@@ -316,177 +306,51 @@ anaExpr (Out.Modex e1 e2 p) = do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
                                     ++ (Out.printPos p)
                                     ++ " en Operacion '%', division entre 0")
-        (Run.CNumber n2) -> do
-            case n2 > 0 of
-                True -> return $ Run.operateDoubleValCalc modex r1 r2
-                False -> return $ Run.modifyDoubleValCalc ((-1)*) $ Run.operateDoubleValCalc modex r1 r2
+        (Run.CNumber n2) -> return (Run.operateDoubleValCalc (Fx.mod') r1 r2)
 
 anaExpr (Out.Div e1 e2 p) = do
-    anaExpr e1
-    st <- get
-    let et1 = topTable $ tablas st
-    case et1 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion 'div', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando izquierdo")
-        Run.ExprTable Run.Number c n -> do
-            put $ modifyTable popTable st
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
-
-    anaExpr e2
-    st <- get
-    let et2 = topTable $ tablas st
-    case et2 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion 'div', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando derecho")
-        Run.ExprTable Run.Number Run.Dynamic n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-            return ()
-        Run.ExprTable Run.Number c (Run.CNumber 0) -> do
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                        ++ (Out.printPos p)
-                                                        ++ " en Operacion 'div', division entre 0")
-        Run.ExprTable Run.Number c n -> do
-            case et1 of
-                Run.ExprTable Run.Number Run.Dynamic n1-> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-                    return ()
-                Run.ExprTable Run.Number c (Run.CNumber n1) -> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number c (modifyDoubleValCalc (applyIntegerFun div n1) n)))
-                    return ()
-
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
+    r1 <- anaExpr e1
+    r2 <- anaExpr e2
+    case r2 of
+        (Run.CNumber 0) -> do
+            throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
+                                    ++ (Out.printPos p)
+                                    ++ " en Operacion '/', division entre 0")
+        (Run.CNumber n2) -> return (Run.operateDoubleValCalc div r1 r2)
 
 anaExpr (Out.Mod e1 e2 p) = do
-    anaExpr e1
-    st <- get
-    let et1 = topTable $ tablas st
-    case et1 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion 'mod', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando izquierdo")
-        Run.ExprTable Run.Number c n -> do
-            put $ modifyTable popTable st
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
-
-    anaExpr e2
-    st <- get
-    let et2 = topTable $ tablas st
-    case et2 of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion 'mod', se esperaba un Tipo Number y se encontro expresion Tipo Boolean en operando derecho")
-        Run.ExprTable Run.Number Run.Dynamic n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-            return ()
-        Run.ExprTable Run.Number c (Run.CNumber 0) -> do
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                        ++ (Out.printPos p)
-                                                        ++ " en Operacion 'mod', division entre 0")
-        Run.ExprTable Run.Number c n -> do
-            case et1 of
-                Run.ExprTable Run.Number Run.Dynamic n1-> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-                    return ()
-                Run.ExprTable Run.Number c (Run.CNumber n1) -> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable Run.Number c (modifyDoubleValCalc (applyIntegerFun mod n1) n)))
-                    return ()
-
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
+    r1 <- anaExpr e1
+    r2 <- anaExpr e2
+    case r2 of
+        (Run.CNumber 0) -> do
+            throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
+                                    ++ (Out.printPos p)
+                                    ++ " en Operacion '%', division entre 0")
+        (Run.CNumber n2) -> return (Run.operateDoubleValCalc mod r1 r2)
 
 
 anaExpr (Out.Not e p) = do
-    anaExpr e
-    st <- get
-    case topTable $ tablas st of
-        Run.ExprTable Run.Number _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion 'not', se esperaba un Tipo Boolean y se encontro expresion Tipo Number")
-        Run.ExprTable Run.Boolean Run.Dynamic n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Boolean Run.Dynamic n))
-            return ()
-        Run.ExprTable Run.Boolean c n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Boolean c (modifyBoolValCalc (\x -> not x) n)))
-            return ()
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
+    r <- anaExpr e
+    return $ modifyBoolValCalc not r
 
 anaExpr (Out.Uminus e p) = do
-    anaExpr e
-    st <- get
-    case topTable $ tablas st of
-        Run.ExprTable Run.Boolean _ _ -> do 
-            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " en Operacion '-', se esperaba un Tipo Number y se encontro expresion Tipo Boolean")
-        Run.ExprTable Run.Number Run.Dynamic n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Number Run.Dynamic n))
-            return ()
-        Run.ExprTable Run.Number c n -> do
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.ExprTable Run.Number c (modifyDoubleValCalc (\x -> -x) n)))
-            return ()
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la expresion"
+    r <- anaExpr e
+    return $ modifyBoolValCalc ((-1)*) r
 
 anaExpr (Out.Identifier i@(Lexer.Identifier p s)) = do
     st <- get
-    case findSym s (onlySymTable(tablas st)) of
-            Nothing -> do 
-                throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ ". Variable " ++ s ++ " no declarada.")
-            Just (Run.FoundSym t v _ )-> do
-                put ( modifyTable (pushTable (Run.ExprTable t Run.Dynamic v)) st )
-                return ()
+    let r = (\(Just k) -> k) $ findSym s (onlySymTable(tablas st))
+    return $ valor r 
 
-anaExpr (Out.Integer (Lexer.Integer _ s)) = do
-    modify ( modifyTable (pushTable (Run.ExprTable Run.Number Run.Constant (Run.CNumber (read s)))) )
+anaExpr (Out.Integer (Lexer.Integer _ s)) = return (Run.CNumber (read s))
 
-anaExpr (Out.Floating (Lexer.Floating _ s)) = do
-    modify ( modifyTable (pushTable (Run.ExprTable Run.Number Run.Constant (Run.CNumber (read s)))) )
+anaExpr (Out.Floating (Lexer.Floating _ s)) = return (Run.CNumber (read s))
 
-anaExpr (Out.ExpTrue (Lexer.True' _ s)) = do
-    modify ( modifyTable (pushTable (Run.ExprTable Run.Boolean Run.Constant (Run.CBoolean True))) )
+anaExpr (Out.ExpTrue (Lexer.True' _ s)) = return (Run.CBoolean True)
 
-anaExpr (Out.ExpFalse (Lexer.False' _ s)) = do
-    modify ( modifyTable (pushTable (Run.ExprTable Run.Boolean Run.Constant (Run.CBoolean False))) )
+anaExpr (Out.ExpFalse (Lexer.False' _ s)) = return (Run.CBoolean False)
 
-anaExpr (Out.ExpFcall f) = do
-    anaFuncion f
-    st <- get
-    case topTable $ tablas st of
-        FuncionTable r -> do 
-            case r of
-                Void -> do
-                    throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                    ++ (Out.showFuncionPos f)
-                                                    ++ ", la cual es un llamado de procedimiento (no retorna nada) en una expresion que esperaba tipo de retorno.")
-                _ -> do
-                    modify $ modifyTable popTable
-                    modify $ modifyTable (pushTable (Run.ExprTable r Run.Dynamic Run.Nein))
-                    return ()
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la funcion"
+anaExpr (Out.ExpFcall f) = return (anaFuncion f)
 
 anaExpr (Out.Bracket e) = anaExpr e
 

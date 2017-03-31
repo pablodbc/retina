@@ -6,7 +6,7 @@ import qualified Grammar
 import qualified Data.Map.Lazy as M 
 import qualified turtle as Tr
 import qualified circle as C
-import Control.Monad.RWS
+import Control.Monad.State.Strict
 import Prelude as P
 import Control.Exception as E
 import Data.Typeable as T
@@ -31,22 +31,20 @@ data Tabla    = ExprTable {tipo :: Type, compType :: CompType, val :: ValCalc} |
                 SymTable {mapa :: M.Map String (Type,ValCalc), height :: Int}
                 deriving (Eq,Show,Ord)
 
-data FunProto = FunProto {retype :: Type, args :: [(String,Type)], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
--- Falta guardar nombres de variables
+data FunProto = FunProto {args :: [(String,Type)], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
 
 
-data FunHandler = FunHandler {id :: String, ret :: Bool} | None deriving (Eq,Show,Ord)
+data FunHandler = FunHandler {Maybe ValCalc :: retVal} | None deriving (Eq,Show,Ord)
 
-data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], funDecl :: FunHandler, h :: Int, ts :: turtleState} deriving (Eq,Show,Ord)
+data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun :: FunHandler, h :: Int, ts :: turtleState} deriving (Eq,Show,Ord)
 
 
 
-data FoundSym = FoundSym Type ValCalc Int deriving (Eq,Show,Ord)
+data FoundSym = FoundSym {t :: Type, valor :: ValCalc, altura :: Int} deriving (Eq,Show,Ord)
 
-import qualified turtle as Tr
-import qualified circle as C
+
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
-type RunMonad = RWS String String State
+type RunMonad = StateT State IO
 
 initialState = State M.empty [] None 0
 
@@ -69,9 +67,6 @@ numberConversionHandler = floor
 
 applyIntegerFun ::(Integral a, RealFrac b) => (a -> a -> a) -> b -> b -> b
 applyIntegerFun f x y = fromIntegral(f (numberConversionHandler x) (numberConversionHandler y))
-
-modex :: RealFrac a => a -> a -> a
-modex x y = x - (y * (fromIntegral $ truncate (x/y)))
 
 
 -- Comparison Handler
