@@ -4,6 +4,8 @@ import qualified Lexer
 import qualified Stdout as Out
 import qualified Grammar 
 import qualified Data.Map.Lazy as M 
+import qualified turtle as Tr
+import qualified circle as C
 import Control.Monad.RWS
 import Prelude as P
 import Control.Exception as E
@@ -35,13 +37,14 @@ data FunProto = FunProto {retype :: Type, args :: [(String,Type)], instrucciones
 
 data FunHandler = FunHandler {id :: String, ret :: Bool} | None deriving (Eq,Show,Ord)
 
-data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], funDecl :: FunHandler, h :: Int} deriving (Eq,Show,Ord)
--- Aqui hay que agregar la matriz de pixeles
+data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], funDecl :: FunHandler, h :: Int, ts :: turtleState} deriving (Eq,Show,Ord)
 
 
 
 data FoundSym = FoundSym Type ValCalc Int deriving (Eq,Show,Ord)
 
+import qualified turtle as Tr
+import qualified circle as C
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
 type RunMonad = RWS String String State
 
@@ -75,7 +78,7 @@ modex x y = x - (y * (fromIntegral $ truncate (x/y)))
 comparisonFunNum :: (Eq a, Ord a, RealFrac a) => (a -> a -> Bool) -> a -> a -> ValCalc
 comparisonFunNum f x y = CBoolean (f x y)
 
-comparisonFunBool :: (Bool -> Bool -> Bool) -> Bool -> Bool -> ValCalc
+comparisonFunBool :: (Bool -> Bool -> Bool) -> Bool -> Bool, ts :: turtleState -> ValCalc
 comparisonFunBool f x y = CBoolean (f x y)
 
 
