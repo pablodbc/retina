@@ -107,16 +107,16 @@ openEye st = TurtleState (curPos st) (maxPos st) (minPos st) (angle st) (movs st
 closeEye :: TurtleState -> TurtleState
 closeEye st = TurtleState (curPos st) (maxPos st) (minPos st) (angle st) (movs st) False
 
-rotateLeft :: TurtleState -> Double -> TurtleState
-rotateLeft st dg = TurtleState (curPos st) (maxPos st) (minPos st) newAngle (movs st) (eye st)
+rotateLeft :: Double -> TurtleState -> TurtleState
+rotateLeft dg st = TurtleState (curPos st) (maxPos st) (minPos st) newAngle (movs st) (eye st)
 	where
 		newAngle = radAdd (angle st) (toRadians dg)
 
-rotateRight :: TurtleState -> Double -> TurtleState
-rotateRight st dg = rotateLeft st (-dg)
+rotateRight :: Double -> TurtleState -> TurtleState
+rotateRight dg st = rotateLeft (-dg) st
 
-insertPoint :: TurtleState -> Vector2D -> TurtleState
-insertPoint st newPos = TurtleState (curPos st) newMax newMin (angle st) newMovs (eye st)
+insertPoint :: Vector2D -> TurtleState -> TurtleState
+insertPoint newPos st = TurtleState (curPos st) newMax newMin (angle st) newMovs (eye st)
 	where
 		newMax = 
 			if (eye st) then 
@@ -134,12 +134,12 @@ insertPoint st newPos = TurtleState (curPos st) newMax newMin (angle st) newMovs
 			else 
 				(movs st)
 
-insertPoints :: TurtleState -> [Vector2D] -> TurtleState
-insertPoints st [] = st
-insertPoints st (x:xs) = insertPoints (insertPoint st x) xs
+insertPoints :: [Vector2D] -> TurtleState -> TurtleState
+insertPoints [] st = st
+insertPoints (x:xs) st = insertPoints xs (insertPoint x st)
 
-setPosition :: TurtleState -> Double -> Double -> TurtleState
-setPosition st x y = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
+setPosition :: Double -> Double -> TurtleState -> TurtleState
+setPosition x y st = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		newPos = Vector2D (round x) (round y)
 		newMax = 
@@ -158,8 +158,8 @@ setPosition st x y = TurtleState newPos newMax newMin (angle st) newMovs (eye st
 			else 
 				(movs st)
 
-forward :: TurtleState -> Double -> TurtleState
-forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
+forward :: Double -> TurtleState -> TurtleState
+forward dist st = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 	where
 		currPos = (curPos st)
 		newPos = (Vector2D (round (dist * cos(angle st))) (round (dist * sin(angle st)))) <+> currPos
@@ -182,11 +182,11 @@ forward st dist = TurtleState newPos newMax newMin (angle st) newMovs (eye st)
 			else 
 				(movs st)
 
-backward :: TurtleState -> Double -> TurtleState
-backward st dist = forward st (-dist)
+backward :: Double -> TurtleState -> TurtleState
+backward dist st = forward (-dist) st
 
-arc :: TurtleState -> Double -> Double -> TurtleState
-arc st an r
+arc :: Double -> Double -> TurtleState -> TurtleState
+arc an r st
 	| not (eye st) = st
 	| otherwise = newSt
 	where
@@ -204,7 +204,7 @@ arc st an r
 
 		points = (map toVector2D (C.generateCirclePoints (x currPos, y currPos) realR))
 		pointsF = currPos : (filter filterFun points)
-		newSt = insertPoints st pointsF
+		newSt = insertPoints pointsF st 
 
 
 -- Graphics
