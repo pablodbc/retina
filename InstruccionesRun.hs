@@ -63,7 +63,7 @@ runExprS :: [Out.ExprS] -> Run.RunMonad ()
 runExprS (x:[]) = do
     case x of
         (Out.StringW lt) -> do
-            liftIO $ putStr $ takeStr lt
+            liftIO $ putStr $ tail $ init $ takeStr lt
         (Out.ExprW e) -> do
             val <- runExpr e
             case val of
@@ -76,7 +76,7 @@ runExprS (x:[]) = do
 runExprS (x:xs) = do
     case x of
         (Out.StringW lt) -> do
-            liftIO $ putStr $ takeStr lt
+            liftIO $ putStr $ tail $ init $ takeStr lt
             runExprS xs
         (Out.ExprW e) -> do
             val <- runExpr e

@@ -1,0 +1,31 @@
+func draw(number radio)
+begin
+	if radio >= 1 then
+		writeln "Radio ", radio;
+
+		writeln "Hijo Izquierdo";
+		rotatel(45);
+
+		forward(radio);
+		arc(180, 3);
+		draw(radio/2);
+		backward(radio);
+
+		writeln "Hijo Derecho";
+		rotater(90);
+
+		forward(radio);
+		arc(180, 3);;
+		draw(radio/2);
+		backward(radio);
+
+		rotatel(45);
+		writeln "Fin Radio ", radio;
+	else
+		writeln "Fin de Draw ", radio;
+		arc(360, 5); 
+	end;
+end;
+program
+    draw(25);
+end;
