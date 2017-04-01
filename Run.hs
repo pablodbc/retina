@@ -4,13 +4,14 @@ import qualified Lexer
 import qualified Stdout as Out
 import qualified Grammar 
 import qualified Data.Map.Lazy as M 
-import qualified turtle as Tr
-import qualified circle as C
-import Control.Monad.State.Strict
+import qualified Turtle as Tr
+import qualified Circle as C
 import Prelude as P
 import Control.Exception as E
 import Data.Typeable as T
 import Data.List
+import Control.Monad.State.Strict
+
 
 data RuntimeError = RuntimeError String
     deriving (T.Typeable)
@@ -30,12 +31,12 @@ data ValCalc  = CBoolean Bool | CNumber Double | Nein deriving (Eq,Show,Ord)
 
 data Tabla    = SymTable {mapa :: M.Map String (ValCalc,Type,Mutable), height :: Int} deriving (Eq,Show,Ord)
 
-data FunProto = FunProto {tipos :: [Type] args :: [String], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
+data FunProto = FunProto {tipos :: [Type], args :: [String], instrucciones :: [Out.AnidS]} deriving (Eq,Show,Ord)
 
 
-data FunHandler = FunHandler {Maybe ValCalc :: retVal} deriving (Eq,Show,Ord)
+data FunHandler = FunHandler {retVal :: Maybe ValCalc} deriving (Eq,Show,Ord)
 
-data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun :: FunHandler, h :: Int, ts :: turtleState} deriving (Eq,Show,Ord)
+data RState = RState {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun :: FunHandler, h :: Int, ts :: Tr.TurtleState} deriving (Eq,Show,Ord)
 
 
 
@@ -43,9 +44,9 @@ data FoundSym = FoundSym {tipo :: Type, valor :: ValCalc, altura :: Int, mutable
 
 
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
-type RunMonad = StateT State IO
+type RunMonad = StateT RState IO
 
-initialState = State M.empty [] None 0
+initialState = RState M.empty [] Nothing 0 Tr.turtleStart
 
 -- ValCalc Modifiers
 modifyBoolValCalc :: (Bool -> Bool) -> ValCalc -> ValCalc
@@ -72,14 +73,14 @@ applyIntegerFun f x y = fromIntegral(f (numberConversionHandler x) (numberConver
 comparisonFunNum :: (Eq a, Ord a, RealFrac a) => (a -> a -> Bool) -> a -> a -> ValCalc
 comparisonFunNum f x y = CBoolean (f x y)
 
-comparisonFunBool :: (Bool -> Bool -> Bool) -> Bool -> Bool, ts :: turtleState -> ValCalc
+comparisonFunBool :: (Bool -> Bool -> Bool) -> Bool -> Bool -> ValCalc
 comparisonFunBool f x y = CBoolean (f x y)
 
 fromCNumber :: ValCalc -> Double
 fromCNumber (CNumber n) = n
 
 fromCBoolean :: ValCalc -> Bool
-fromCNumber (CBoolean b) = b
+fromCBoolean (CBoolean b) = b
 
 
 
@@ -99,11 +100,11 @@ topTable (tabla:tablas) = tabla
 replaceAt :: Int -> Tabla -> [Tabla] -> [Tabla]
 replaceAt n x xs = take n xs ++ [x] ++ drop (n+1) xs
 
-modifyTable :: ([Tabla] -> [Tabla]) -> State -> State
-modifyTable f (State fs t fd h) = State fs (f t) fd h
+modifyTable :: ([Tabla] -> [Tabla]) -> RState -> RState
+modifyTable f (RState fs t fd h) = RState fs (f t) fd h
 
-modifyHeight :: (Int -> Int) -> State -> State
-modifyHeight f (State fs t fd h) = State fs t fd (f h)
+modifyHeight :: (Int -> Int) -> RState -> RState
+modifyHeight f (RState fs t fd h) = RState fs t fd (f h)
 
 -- Handler de Simbolos
 
@@ -142,11 +143,11 @@ findFun :: String -> M.Map String FunProto -> Maybe FunProto
 findFun s m = M.lookup s m
 
 
-insertFunProto :: String -> FunProto -> State -> State
-insertFunProto s p (State fs t fd h) = State (M.insert s p fs) t fd h
+insertFunProto :: String -> FunProto -> RState -> RState
+insertFunProto s p (RState fs t fd h) = RState (M.insert s p fs) t fd h
 
 -- Tipo y Type Handlers
-getTypeList :: [Out.ParamL] -> [Context.Type]
+getTypeList :: [Out.ParamL] -> [Type]
 getTypeList [] = []
 getTypeList ((Out.ParamL t _):rest) = (fromTipo t) : getTypeList rest
 
@@ -155,69 +156,10 @@ fromTipo Out.BooleanT = Boolean
 fromTipo Out.NumberT = Number
 
 --Utilidad para modificar un handler
-modifyHandler :: (FunHandler -> FunHandler) -> State -> State
-modifyHandler f (State fs t fd h) = State fs t (f fd) h
+modifyHandler :: (FunHandler -> FunHandler) -> RState -> RState
+modifyHandler f (RState fs t fd h) = RState fs t (f fd) h
 
 replace :: Maybe ValCalc -> FunHandler -> FunHandler
 replace v f = FunHandler v 
 
 
--- Utilidad para saber si una variable esta presente en su propia declaracion
-stringInFuncion :: String -> Out.Funcion -> Bool 
-stringInFuncion s (Out.FuncionSA lt) = False
-
-stringInFuncion s (Out.FuncionCA lt xprs) = foldr (||) False (map (stringInExpr s) xprs)
-
-
-stringInExpr :: String -> Out.Expr -> Bool
-stringInExpr s (Out.Or e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.And e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Eq e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Neq e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Less e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Lesseq e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.More e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Moreq e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Plus e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Minus e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Mult e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Divex e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Modex e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Div e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Mod e1 e2 _) = (stringInExpr s e1) || (stringInExpr s e2)
-
-stringInExpr s (Out.Not e _) = (stringInExpr s e)
-
-stringInExpr s (Out.Uminus e _) = (stringInExpr s e)
-
-stringInExpr s (Out.Identifier (Lexer.Identifier p id)) 
-    | (s == id) = throw $ Context.ContextError ("Cerca de la siguiente posicion" 
-                                                    ++ (Out.printPos p)
-                                                    ++ ", se encontro el uso de la variable "++id++" dentro de su propia definicion")
-    | otherwise = False
-
-stringInExpr s (Out.Integer n) = False
-
-stringInExpr s (Out.Floating n) = False
-
-stringInExpr s (Out.ExpTrue b) = False
-
-stringInExpr s (Out.ExpFalse b) = False
-
-stringInExpr s (Out.ExpFcall f) = (stringInFuncion s f)
-
-stringInExpr s (Out.Bracket e) = (stringInExpr s e)

@@ -10,6 +10,7 @@ import Expresiones as Expresiones
 import Instrucciones as Instrucciones
 import Programa as Programa
 import Control.Monad.RWS
+import Control.Monad.State.Strict
 import Control.DeepSeq
 
 

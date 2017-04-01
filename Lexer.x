@@ -73,7 +73,7 @@ tokens :-
 
 alexEOF :: Alex ()
 alexEOF = return ()
-
+instance Ord AlexPosn
 data Token = Integer AlexPosn String            |
              Floating AlexPosn String           | 
              Str AlexPosn String                |
@@ -125,7 +125,7 @@ data Token = Integer AlexPosn String            |
              From AlexPosn String               |
              To AlexPosn String                 |
              Read AlexPosn String
-             deriving (Eq)
+             deriving (Eq,Ord)
 
 
 

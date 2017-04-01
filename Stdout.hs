@@ -435,13 +435,13 @@ instance Show Lexer.Token where
     show (Lexer.LexError _ s) = "Caracter Inesperado: '" ++ (id s) ++ "'" 
 
 
-data Init     = Program [FunDec] [AnidS] deriving (Show)
+data Init     = Program [FunDec] [AnidS] deriving (Eq,Show,Ord)
 
 data FunDec   = Proc Lexer.Token [ParamL] [AnidS]                |
                 Func Lexer.Token [ParamL] Tipo [AnidS]
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
-data ParamL   = ParamL Tipo Lexer.Token deriving (Show)
+data ParamL   = ParamL Tipo Lexer.Token deriving (Eq,Show,Ord)
 
 data AnidS    = Bifelse Expr [AnidS] [AnidS] Lexer.AlexPosn                         |
                 Bif Expr [AnidS] Lexer.AlexPosn                                     |
@@ -457,24 +457,24 @@ data AnidS    = Bifelse Expr [AnidS] [AnidS] Lexer.AlexPosn                     
                 WriteLn [ExprS]                                                     |
                 Return Expr Lexer.AlexPosn                                          |
                 EmptyB                                       
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
 data Decl     = Inicializacion Tipo Lexer.Token Expr        |
                 Declaracion Tipo [Lexer.Token]              |
                 EmptyD
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
 data Tipo     = NumberT |
                 BooleanT
-                deriving (Eq,Show)
+                deriving (Eq,Show,Ord)
 
 data ExprS    = ExprW Expr           |
                 StringW Lexer.Token  
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
 data Funcion  = FuncionSA Lexer.Token         |
                 FuncionCA Lexer.Token [Expr]
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
 data Expr     = Or Expr Expr Lexer.AlexPosn                   |
                 And Expr Expr Lexer.AlexPosn                  |
@@ -500,7 +500,7 @@ data Expr     = Or Expr Expr Lexer.AlexPosn                   |
                 ExpFalse Lexer.Token                          |
                 ExpFcall Funcion                              |
                 Bracket Expr
-                deriving (Show)
+                deriving (Eq,Show,Ord)
 
 
 
