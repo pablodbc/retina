@@ -1,17 +1,17 @@
 func draw(number radio)
 begin
-	if radio != 0 then
+	if radio /= 0 then
 		rotatel(45);
 
 		forward(radio);
-		arc(360, 5);
+		arc(180, 3);
 		draw(radio/2);
 		backward(radio);
 
 		rotater(90);
 
 		forward(radio);
-		arc(360, 5);
+		arc(180, 3);;
 		draw(radio/2);
 		backward(radio);
 
