@@ -50,5 +50,10 @@ main = do
                     let (s, w) = execRWS (anaInit ast) "   " initialState
                     let final = deepseq w w
                     putStr $! final
+                    {-
+                    -- aqui va la corrida probablemente
+                    let turtle = -- aqui va el turtle state
+                    drawTurtle x turtle
+                    -}
 
             
