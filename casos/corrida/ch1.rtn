@@ -1,0 +1,28 @@
+func draw(number radio)
+begin
+	if radio /= 0 then
+		rotatel(45);
+
+		forward(radio);
+		arc(180, 3);
+		draw(radio/2);
+		backward(radio);
+
+		rotater(90);
+
+		forward(radio);
+		arc(180, 3);;
+		draw(radio/2);
+		backward(radio);
+
+		rotatel(45);
+	else
+		arc(360, 5); 
+	end;
+end;
+program
+    for l from 0 to 360 by 90 do
+    	draw(500);
+    	rotatel(90);
+    end;
+end;
