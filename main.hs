@@ -16,6 +16,7 @@ import InstruccionesRun
 import Turtle 
 import Circle
 import ProgramaRun
+import Run as Run
 
 
 argError :: [String] -> Either String String
@@ -50,11 +51,12 @@ main = do
             ss <- readFile x
             case parseArg ss of
                 Left msg -> putStrLn msg
-                Right x -> do
-                    ast <- parse x
-                    let (s, w) = execRWS (anaInit ast) "   " initialState
+                Right x' -> do
+                    ast <- parse x'
+                    let (s, w) = execRWS (anaInit ast) "   " Context.initialState
                     let final = deepseq w w
-                    putStr $! final
+                    turtle <- execStateT (runInit ast) Run.initialState
+                    drawTurtle x $ Run.ts turtle
                     {-
                     -- aqui va la corrida probablemente
                     let turtle = -- aqui va el turtle state
