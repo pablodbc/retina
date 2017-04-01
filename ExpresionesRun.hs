@@ -9,152 +9,43 @@ import Run as Run
 import Control.Exception
 
 
-anaDecl :: Out.Decl -> Run.RunMonad ()
-anaDecl (Inicializacion t (Lexer.Identifier p s) e) = do
+runDecl :: Out.Decl -> Run.RunMonad ()
+runDecl (Inicializacion t (Lexer.Identifier p s) e) = do
+    v <- anaExpr e
     st <- get
     let symT = topTable $ tablas st
-    case findSym s (onlySymTable(tablas st)) of
-        Just (FoundSym _ _ h ) -> do
-            case h == (height symT) of
-                True -> do
-                    throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ ". Variable " ++ s ++ " declarada dos veces en el mismo alcance.")
-                False -> do
-                    put (st)
-        _ -> do 
-            put (st)
+    modify $ popTable $ tablas
+    let symT' = (SymTable (insert s (v,(fromTipo t),True) $ mapa symT) $ height symT)
+    modify $ pushTable symT'
 
-    case Run.stringInExpr s e of
-        True -> error "De alguna forma llegue aqui"
-        False -> do
-            st <- get
-            put st
-        
-    st <- get
-    let symT = topTable $ tablas st
-    modify $ modifyTable popTable
-    st <- get
-    case symT of
-        (SymTable _ _) -> do
-            case t of
-                Out.NumberT -> do
-                    put $ modifyTable (pushTable (Run.insertSym symT s Run.Number Run.Nein)) st
-                    runExpr e
-                    st <- get
-                    case topTable $ tablas st of
-                        Run.ExprTable Run.Boolean _ _ -> do 
-                            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                            ++ (Out.printPos p)
-                                                            ++ " , se declaro Tipo Number pero se inicializo con una expresion Tipo Boolean")
-                        Run.ExprTable Run.Number _ _ -> do
-                            sep <- ask
-                            tell (Out.showLine sep ((h st) +2) (s ++ " : number\n"))
-                            put $ modifyTable popTable st
-                            return ()
-                        _ -> do
-                            error "Error interno, algo salio mal y no esta la tabla de la expresion"
-                Out.BooleanT -> do
-                    put $ modifyTable (pushTable (Run.insertSym symT s Run.Boolean Run.Nein)) st
-                    runExpr e
-                    st <- get
-                    case topTable $ tablas st of
-                        Run.ExprTable Run.Number _ _ -> do 
-                            throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                                            ++ (Out.printPos p)
-                                                            ++ " , se declaro Tipo Boolean pero se inicializo con una expresion Tipo Number")
-                        Run.ExprTable Run.Boolean _ _ -> do
-                            sep <- ask
-                            tell (Out.showLine sep ((h st) +2) (s ++ " : boolean\n"))
-                            put $ modifyTable popTable st
-                            return ()
-                        _ -> do
-                            error "Error interno, algo salio mal y no esta la tabla de la expresion"
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la simbolos"
-    
 
-anaDecl (Declaracion t ids) = do
+runDecl (Declaracion t ids) = do
     case t of
-        Out.NumberT -> anaID Run.Number ids
-        Out.BooleanT -> anaID Run.Boolean ids
+        Out.NumberT -> runID Number ids
+        Out.BooleanT -> runID Boolean ids
 
-anaDecl EmptyD = do
+runDecl EmptyD = do
     return ()
 
 
-anaID :: Run.Type -> [Lexer.Token] -> Run.RunMonad ()
-anaID t ((Lexer.Identifier p s):[]) = do
+runID :: Run.Type -> [Lexer.Token] -> Run.RunMonad ()
+runID t ((Lexer.Identifier p s):[]) = do
     st <- get
     let symT = topTable $ tablas st
-    case symT of
-        (SymTable _ _) -> do
-            put st
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la simbolos"
-    case findSym s (onlySymTable(tablas st)) of
-        Just (FoundSym _ _ h ) -> do
-            case h == (height symT) of -- ERROR, HAY QUE RE-PENSAR ESTO
-                True -> do
-                    throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ ". Variable " ++ s ++ " declarada dos veces en el mismo alcance.")
-                False -> do
-                    put (st)
-        _ -> do 
-            put (st)
-    st <- get
-    let symT = topTable $ tablas st
-    case symT of
-        (SymTable _ _) -> do
-            case t of
-                Run.Number -> do
-                    sep <- ask
-                    tell (Out.showLine sep ((h st) +2) (s ++ " : number\n"))
-                Run.Boolean -> do
-                    sep <- ask
-                    tell (Out.showLine sep ((h st) +2) (s ++ " : boolean\n"))
-            modify $ modifyTable popTable
-            modify $ modifyTable (pushTable (Run.insertSym symT s t Run.Nein))
-            return ()
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la simbolos"
+    modify $ popTable $ tablas
+    let symT' = (SymTable (insert s (v,t,True) $ mapa symT) $ height symT)
+    modify $ pushTable symT'
 
-anaID t ((Lexer.Identifier p s):rest) = do
+
+
+
+runID t ((Lexer.Identifier p s):rest) = do
     st <- get
     let symT = topTable $ tablas st
-    case symT of
-        (SymTable _ _) -> do
-            put st
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la simbolos"
-    case findSym s (onlySymTable(tablas st)) of
-        Just (FoundSym _ _ h ) -> do
-            case h == (height symT) of
-                True -> do
-                    throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ ". Variable " ++ s ++ " declarada dos veces en el mismo alcance.")
-                False -> do
-                    put (st)
-        _ -> do 
-            put (st)
-    st <- get
-    let symT = topTable $ tablas st
-    case symT of
-        (SymTable _ _) -> do
-            case t of
-                Run.Number -> do
-                    sep <- ask
-                    tell (Out.showLine sep ((h st) +2) (s ++ " : number\n"))
-                Run.Boolean -> do
-                    sep <- ask
-                    tell (Out.showLine sep ((h st) +2) (s ++ " : boolean\n"))
-            modify $  modifyTable popTable
-            modify $ modifyTable (pushTable (Run.insertSym symT s t Run.Nein))
-            anaID t rest
-        _ -> do
-            error "Error interno, algo salio mal y no esta la tabla de la simbolos"
+    modify $ popTable $ tablas
+    let symT' = (SymTable (insert s (v,t,True) $ mapa symT) $ height symT)
+    modify $ pushTable symT'
+    runID t rest
 
 
 runExprS :: [Out.ExprS] -> Run.RunMonad ()
