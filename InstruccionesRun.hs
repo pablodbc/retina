@@ -401,34 +401,13 @@ runAnidS (WriteLn args) = do
                 True -> return ()
 
 runAnidS (Return e p) = do
-    anaExpr e
-    st <- get
-    modify (modifyTable popTable)
-    case (funDecl st) of
-        None -> do
-            throw $ Context.ContextError ("Cerca de la siguiente posicion " 
-                                            ++ (Out.printPos p)
-                                            ++ ", Funcion de retorno en programa principal")
-        _ -> do
+    r <- verifyReturn
+    case r of
+        False -> do
+            val <- runExpr e
+            modify $ modifyHandler $ replace Just val
+        True -> return ()
 
-            let fid = Context.id (funDecl st)
-            modify $ modifyHandler $ replace fid True
-            case findFun fid (funcs st) of
-                Just (FunProto t lt _) -> do
-                    case t of
-                        Context.Void -> do
-                            throw $ Context.ContextError ("Cerca de la siguiente posicion " 
-                                            ++ (Out.printPos p)
-                                            ++ ", se detectó una expresión de retorno en la definición de un procedimiento.")
-                        _ -> do
-                            case (tipo (head $ tablas st) == t) of
-                                True -> do return ()
-                                False -> throw $ Context.ContextError ("Cerca de la siguiente posicion " 
-                                                    ++ (Out.printPos p)
-                                                    ++ ", se esperaba una expresion de tipo " ++ (show t))
-
-                Nothing -> do 
-                    error "Error interno, algo salio mal y la función no se encuentra en el mapa"
 runAnidS (EmptyB) = do
     return ()
         
