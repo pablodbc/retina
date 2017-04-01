@@ -284,5 +284,17 @@ showTurtle st = "P1\n# Made by Christian Oliveros & Pablo Betancourt\n" ++ res
 		height =(y $ f (minPos st))
 		res = showRows viewMap width height
 
-drawTurtle :: TurtleState -> IO ()
-drawTurtle st = writeFile "retina.pbm" (showTurtle st)
+drawTurtleTest :: TurtleState -> IO ()
+drawTurtleTest st = writeFile "retina.pbm" (showTurtle st)
+
+
+drawTurtle :: String -> TurtleState -> IO ()
+drawTurtle s st = writeFile s' (showTurtle st)
+	where 
+		s' = reverse $ cutByDot $ reverse s 
+
+
+cutByDot :: String -> String
+cutByDot [] = error "dot not found"
+cutByDot ('.':xs) = xs
+cutByDot (x:xs) = cutByDot xs
