@@ -363,24 +363,61 @@ runProc (FuncionSA lt) = do
     let s = takeStr lt
     case s of
         "home" -> do
-            modify $ modifyTurtle Tr.
-    st <- get
-    let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
-    modify $ modifyTable (pushTable (SymTable M.empty (h st)))
-    mapM_ runAnidS $ instrucciones f
-    modify $ modifyTable popTable 
-    modify $ modifyHandler $ replace Nothing
+            modify $ modifyTurtle Tr.home
+        "openeye" -> do
+            modify $ modifyTurtle Tr.openEye
+    
+        "closeeye" -> do
+            modify $ modifyTurtle Tr.closeEye
+        _ -> do
+            st <- get
+            let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
+            modify $ modifyTable (pushTable (SymTable M.empty (h st)))
+            mapM_ runAnidS $ instrucciones f
+            modify $ modifyTable popTable 
+            modify $ modifyHandler $ replace Nothing
 
 runProc (FuncionCA lt xprs) = do
     let p = takePos lt
     let s = takeStr lt
-    st <- get
-    let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
-    modify $ modifyTable (pushTable (SymTable M.empty (h st)))
-    loadArgs (tipos f) (args f) xprs
-    mapM_ runAnidS $ instrucciones f
-    modify $ modifyTable popTable
-    modify $ modifyHandler $ replace Nothing
+    case s of
+        "forward" -> do
+            r <- runExpr (xprs!!0)
+            let val = fromCNumber r
+            modify $ modifyTurtle (Tr.forward val)
+        "backward" -> do
+            r <- runExpr (xprs!!0)
+            let val = fromCNumber r
+            modify $ modifyTurtle (Tr.backward val)
+        "rotatel" -> do
+            r <- runExpr (xprs!!0)
+            let val = fromCNumber r
+            modify $ modifyTurtle (Tr.rotateLeft val)
+        "rotater" -> do
+            r <- runExpr (xprs!!0)
+            let val = fromCNumber r
+            modify $ modifyTurtle (Tr.rotateRight val)
+        "setposition" -> do
+            r <- runExpr (xprs!!0)
+            l <- runExpr (xprs!!1)
+            let val1 = fromCNumber r
+            let val2 = fromCNumber l
+            modify $ modifyTurtle (Tr.setPosition val1 val2)
+        "arc" -> do
+            r <- runExpr (xprs!!0)
+            l <- runExpr (xprs!!1)
+            let val1 = fromCNumber r
+            let val2 = fromCNumber l
+            modify $ modifyTurtle (Tr.arc val1 val2)
+
+        _ -> do
+            st <- get
+            let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
+            modify $ modifyTable (pushTable (SymTable M.empty (h st)))
+            loadArgs (tipos f) (args f) xprs
+            mapM_ runAnidS $ instrucciones f
+            modify $ modifyTable popTable
+            modify $ modifyHandler $ replace Nothing
 
 runAnidS :: Out.AnidS -> RunMonad ()
 

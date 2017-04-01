@@ -158,6 +158,10 @@ getTypeList :: [Out.ParamL] -> [Type]
 getTypeList [] = []
 getTypeList ((Out.ParamL t _):rest) = (fromTipo t) : getTypeList rest
 
+getStrList :: [Out.ParamL] -> [String]
+getStrList [] = []
+getStrList ((Out.ParamL _ idt@(Lexer.Identifier p s) ):rest) = s : getStrList rest
+
 fromTipo :: Out.Tipo -> Type
 fromTipo Out.BooleanT = Boolean
 fromTipo Out.NumberT = Number
