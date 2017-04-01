@@ -28,9 +28,9 @@ data Type     = Boolean | Number | Void deriving (Eq,Show,Ord)
 data ValCalc  = CBoolean Bool | CNumber Double | Nein deriving (Eq,Show,Ord)
 
 
-data Tabla    = SymTable {mapa :: M.Map String (ValCalc,Mutable), height :: Int} deriving (Eq,Show,Ord)
+data Tabla    = SymTable {mapa :: M.Map String (ValCalc,Type,Mutable), height :: Int} deriving (Eq,Show,Ord)
 
-data FunProto = FunProto {args :: [String], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
+data FunProto = FunProto {tipos :: [Type] args :: [String], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
 
 
 data FunHandler = FunHandler {Maybe ValCalc :: retVal} deriving (Eq,Show,Ord)
@@ -39,7 +39,7 @@ data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun ::
 
 
 
-data FoundSym = FoundSym {valor :: ValCalc, altura :: Int, mutable :: Mutable} deriving (Eq,Show,Ord)
+data FoundSym = FoundSym {tipo :: Type, valor :: ValCalc, altura :: Int, mutable :: Mutable} deriving (Eq,Show,Ord)
 
 
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
@@ -119,7 +119,7 @@ findSym :: String -> [Tabla] -> Maybe FoundSym
 
 findSym _ [] = Nothing
 findSym s (x:xs) = case r of Nothing -> findSym s xs
-                             Just (v,b) -> return(FoundSym v (height x) b)
+                             Just (v,t,b) -> return(FoundSym t v (height x) b)
                             where r = M.lookup s (mapa x)
 
 type Pos = Int
@@ -127,7 +127,7 @@ findSymTable :: String -> [Tabla] -> Maybe (Tabla,Pos)
 findSymTable s [] _ = Nothing
 findSymTable s (x:xs) n = case r of 
     Nothing -> findSymTable s xs (n+1)
-    Just (v,b) -> return((x,n))
+    _ -> return((x,n))
     where r = M.lookup s (mapa x)
 
 

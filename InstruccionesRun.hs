@@ -174,25 +174,27 @@ runAnidS (Bfor (Lexer.Identifier p s) e1 e2 []) = do
 runFor :: String -> Integer -> Integer -> [AnidS] -> RunMonad ()
 runFor s end [] step = do
     st <- get
-    let k = valor $ fromJust $ findSym s $ tablas st
+    let var = fromJust $ findSym s $ tablas st
+    let k = valor var
     case operateDoubleValCalc (<) k (CNumber end) of
         CBoolean True -> do
             let newK = modifyDoubleValCalc (+step) k
             let (x,n) = fromJust $ findSymTable s $ tablas st
-            let x1 = (SymTable (insert s (newK,False) $ mapa x) $ height x)
+            let x1 = (SymTable (insert s (newK,(tipo var),False) $ mapa x) $ height x)
             modify $ modifyTable $ replaceAt n x1
             runFor s end [] step
         CBoolean False -> return ()
 
 runFor s end ins step = do
     st <- get
-    let k = valor $ fromJust $ findSym s $ tablas st
+    let var = fromJust $ findSym s $ tablas st
+    let k = valor var
     case operateDoubleValCalc (<) k (CNumber end) of
         CBoolean True -> do
-            mapM_ runAnids ins
+            mapM_ runAnidS ins
             let newK = modifyDoubleValCalc (+step) k
             let (x,n) = fromJust $ findSymTable s $ tablas st
-            let x1 = (SymTable (insert s (newK,False) $ mapa x) $ height x)
+            let x1 = (SymTable (insert s (newK,(tipo var)False) $ mapa x) $ height x)
             modify $ modifyTable $ replaceAt n x1
             runFor s end ins step
         CBoolean False -> return ()
@@ -299,11 +301,12 @@ runAnidS (Asig lt e) = do
                 let p = takePos lt
                 let s = takeStr lt
                 v <- anaExpr e
+                st <- get
                 let k = fromJust $ findSym s $ tablas st
                 case mutable k of
                     True -> do
                         let (x,n) = fromJust $ findSymTable s $ tablas st
-                        let x1 = (SymTable (insert s (k,True) $ mapa x) $ height x)
+                        let x1 = (SymTable (insert s (v,(tipo k),True) $ mapa x) $ height x)
                         modify $ modifyTable $ replaceAt n x1
                     False -> throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
                                     ++ (Out.printPos p)
@@ -312,7 +315,11 @@ runAnidS (Asig lt e) = do
             True -> return ()
 
 runAnidS (InsFcall f) = do
-    runProc f
+    r <- verifyReturn
+        case r of
+            False -> do   
+                runProc f
+            True -> return ()
 
 runProc :: Funcion -> RunMonad ()
 runProc (FuncionSA lt) = do
@@ -331,29 +338,67 @@ runProc (FuncionCA lt xprs) = do
     st <- get
     let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
     modify $ modifyTable (pushTable (SymTable M.empty (h st)))
-    loadArgs (args f) xprs
+    loadArgs (tipos f) (args f) xprs
     mapM_ runAnidS $ instrucciones f
     modify $ modifyTable popTable
     modify $ modifyHandler $ replace Nothing
 
 runAnidS (Read lt) = do
-    let p = takePos lt
-    let s = takeStr lt
-    st <- get
-    case findSym s (onlySymTable(tablas st)) of
-            Nothing -> do 
-                throw $ Context.ContextError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ ". Variable " ++ s ++ " no declarada.")
-            Just (Context.FoundSym t v _ )-> do return ()
+    r <- verifyReturn
+        case r of
+            False -> do
+                let p = takePos lt
+                let s = takeStr lt
+                st <- get
+                let k = fromJust $ findSym s $ tablas st
+                case mutable k of
+                    True -> do
+                        val <- liftIO $ getLine
+                        case tipo k of
+                            Number -> do
+                                let readValue = readMaybe val :: Maybe Double
+                                case readValue of
+                                    Nothing -> do
+                                        throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
+                                                                            ++ (Out.printPos p)
+                                                                            ++ " en instruccion de lectura, se esperaba un numero)
+                                    Just finalValue -> do
+                                        let vc = CNumber finalValue
+                                        let (x,n) = fromJust $ findSymTable s $ tablas st
+                                        let x1 = (SymTable (insert s (vc,Number,True) $ mapa x) $ height x)
+                                        modify $ modifyTable $ replaceAt n x1
+                            Boolean -> do
+                                case val of
+                                    "true" -> do
+                                        let vc = CBoolean True
+                                        let (x,n) = fromJust $ findSymTable s $ tablas st
+                                        let x1 = (SymTable (insert s (vc,Boolean,True) $ mapa x) $ height x)
+                                        modify $ modifyTable $ replaceAt n x1
 
+                                    "false" -> do
+                                        let vc = CBoolean False
+                                        let (x,n) = fromJust $ findSymTable s $ tablas st
+                                        let x1 = (SymTable (insert s (vc,Boolean,True) $ mapa x) $ height x)
+                                        modify $ modifyTable $ replaceAt n x1
+
+                                    _ -> throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
+                                                    ++ (Out.printPos p)
+                                                    ++ " en instruccion de lectura, se esperaba un booleano.")
+            True -> return ()
 runAnidS (Write args) = do
-    anaExprS args
-    return ()
-
+    r <- verifyReturn
+        case r of
+            False -> do
+                runExprS args
+                liftIO (putStr "" >> hFlush stdout)
+            True -> return ()
 runAnidS (WriteLn args) = do
-    anaExprS args
-    return()
+    r <- verifyReturn
+            case r of
+                False -> do
+                    runExprS args
+                    liftIO (putStr "" >> hFlush stdout)
+                True -> return ()
 
 runAnidS (Return e p) = do
     anaExpr e

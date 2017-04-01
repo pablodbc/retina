@@ -160,22 +160,36 @@ anaID t ((Lexer.Identifier p s):rest) = do
 runExprS :: [Out.ExprS] -> Run.RunMonad ()
 runExprS (x:[]) = do
     case x of
-        (Out.StringW _) -> do
-            return ()
+        (Out.StringW lt) -> do
+            liftIO $ putStr $ takeStr lt
         (Out.ExprW e) -> do
-            runExpr e
-            st <- get
-            put (modifyTable popTable st)
-            return ()
+            val <- runExpr e
+            case val of
+                CNumber n -> do
+                    liftIO $ putStr $ show n
+                CBoolean True -> do
+                    liftIO $ putStr "true" 
+                CBoolean False -> do
+                    liftIO $ putStr "false" 
 runExprS (x:xs) = do
     case x of
-        (Out.StringW _) -> do
+        (Out.StringW lt) -> do
+            liftIO $ putStr $ takeStr lt
             runExprS xs
         (Out.ExprW e) -> do
-            runExpr e
-            modify (modifyTable popTable)
-            runExprS xs
+            val <- runExpr e
+            case val of
+                CNumber n -> do
+                    liftIO $ putStr $ show n
+                    runExprS xs
 
+                CBoolean True -> do
+                    liftIO $ putStr "true" 
+                    runExprS xs
+
+                CBoolean False -> do
+                    liftIO $ putStr "false"
+                    runExprS xs
 
 runFuncion :: Out.Funcion -> Run.RunMonad ValCalc
 runFuncion (FuncionSA lt) = do
@@ -201,7 +215,7 @@ runFuncion (FuncionCA lt xprs) = do
     st <- get
     let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
     modify $ modifyTable (pushTable (SymTable M.empty (h st)))
-    loadArgs (args f) xprs
+    loadArgs (tipos f) (args f) xprs
     mapM_ runAnidS $ instrucciones f
     st <- get
     case retVal $ curFun st of
@@ -215,16 +229,16 @@ runFuncion (FuncionCA lt xprs) = do
             return v
 
 
-loadArgs :: [String] -> [Expr] -> RunMonad ()
-loadArgs [] [] = return ()
-loadArgs (s:ss) (e:exs) = do
+loadArgs :: [Type] -> [String] -> [Expr] -> RunMonad ()
+loadArgs [] [] [] = return ()
+loadArgs (t:ts) (s:ss) (e:exs) = do
     st <- get
     v <- runExpr e
     let symT = topTable $ tablas st
     modify $ popTable $ tablas
-    let symT' = (SymTable (insert s (v,True) $ mapa symT) $ height symT)
+    let symT' = (SymTable (insert s (v,t,True) $ mapa symT) $ height symT)
     modify $ pushTable symT'
-    loadArgs ss exs
+    loadArgs ts ss exs
 
 
 runExpr :: Out.Expr -> RunMonad Run.ValCalc
