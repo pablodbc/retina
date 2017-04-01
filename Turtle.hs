@@ -81,6 +81,7 @@ betweenAngles c a s f
 
 data Movement = Point Vector2D |
 				Line Vector2D Vector2D
+				deriving (Eq,Ord,Show)
 
 data TurtleState = TurtleState {
 	curPos :: Vector2D,
@@ -89,7 +90,7 @@ data TurtleState = TurtleState {
 	angle :: Double, -- Radians from 0.0 to 2 * pi
 	movs :: [Movement],
 	eye :: Bool
-}
+} 	deriving (Eq,Ord,Show)
 
 turtleStart :: TurtleState
 turtleStart = TurtleState vector2DZero vector2DZero vector2DZero (pi/2) [(Point vector2DZero)] True
@@ -284,5 +285,17 @@ showTurtle st = "P1\n# Made by Christian Oliveros & Pablo Betancourt\n" ++ res
 		height =(y $ f (minPos st))
 		res = showRows viewMap width height
 
-drawTurtle :: TurtleState -> IO ()
-drawTurtle st = writeFile "retina.pbm" (showTurtle st)
+drawTurtleTest :: TurtleState -> IO ()
+drawTurtleTest st = writeFile "retina.pbm" (showTurtle st)
+
+
+drawTurtle :: String -> TurtleState -> IO ()
+drawTurtle s st = writeFile s' (showTurtle st)
+	where 
+		s' = reverse $ cutByDot $ reverse s 
+
+
+cutByDot :: String -> String
+cutByDot [] = error "dot not found"
+cutByDot ('.':xs) = xs
+cutByDot (x:xs) = cutByDot xs

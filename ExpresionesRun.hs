@@ -6,12 +6,15 @@ import Data.Map.Strict as M
 import Data.Fixed as Fx
 import Data.Maybe as Mb 
 import Run as Run
+import InstruccionesRun
+import Turtle
 import Control.Exception
+import Control.Monad.State.Strict
 
 
 runDecl :: Out.Decl -> Run.RunMonad ()
 runDecl (Inicializacion t (Lexer.Identifier p s) e) = do
-    v <- anaExpr e
+    v <- runExpr e
     st <- get
     let symT = topTable $ tablas st
     modify $ popTable $ tablas
@@ -31,6 +34,7 @@ runDecl EmptyD = do
 runID :: Run.Type -> [Lexer.Token] -> Run.RunMonad ()
 runID t ((Lexer.Identifier p s):[]) = do
     st <- get
+    let v = if t == Number then CNumber 0 else CBoolean False
     let symT = topTable $ tablas st
     modify $ popTable $ tablas
     let symT' = (SymTable (insert s (v,t,True) $ mapa symT) $ height symT)
@@ -41,6 +45,7 @@ runID t ((Lexer.Identifier p s):[]) = do
 
 runID t ((Lexer.Identifier p s):rest) = do
     st <- get
+    let v = if t == Number then CNumber 0 else CBoolean False
     let symT = topTable $ tablas st
     modify $ popTable $ tablas
     let symT' = (SymTable (insert s (v,t,True) $ mapa symT) $ height symT)

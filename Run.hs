@@ -46,7 +46,7 @@ data FoundSym = FoundSym {tipo :: Type, valor :: ValCalc, altura :: Int, mutable
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
 type RunMonad = StateT RState IO
 
-initialState = RState M.empty [] Nothing 0 Tr.turtleStart
+initialState = RState M.empty [] (FunHandler Nothing) 0 Tr.turtleStart
 
 -- ValCalc Modifiers
 modifyBoolValCalc :: (Bool -> Bool) -> ValCalc -> ValCalc
@@ -60,6 +60,13 @@ modifyDoubleValCalc f (CNumber n) = CNumber (f n)
 
 operateDoubleValCalc :: (Double -> Double -> Double) -> ValCalc -> ValCalc -> ValCalc
 operateDoubleValCalc f (CNumber n1) (CNumber n2) = CNumber (f n1 n2)
+
+modifyDouboolValCalc :: (Double -> Bool) -> ValCalc -> ValCalc
+modifyDouboolValCalc f (CNumber n) = CBoolean (f n)
+
+operateDouboolValCalc :: (Double -> Double -> Bool) -> ValCalc -> ValCalc -> ValCalc
+operateDouboolValCalc f (CNumber n1) (CNumber n2) = CBoolean (f n1 n2)
+
 
 -- Number Handlers
 numberConversionHandler :: (RealFrac a, Integral b) => a -> b
@@ -101,20 +108,20 @@ replaceAt :: Int -> Tabla -> [Tabla] -> [Tabla]
 replaceAt n x xs = take n xs ++ [x] ++ drop (n+1) xs
 
 modifyTable :: ([Tabla] -> [Tabla]) -> RState -> RState
-modifyTable f (RState fs t fd h) = RState fs (f t) fd h
+modifyTable f (RState fs t fd h tS) = RState fs (f t) fd h tS
 
 modifyHeight :: (Int -> Int) -> RState -> RState
-modifyHeight f (RState fs t fd h) = RState fs t fd (f h)
+modifyHeight f (RState fs t fd h tS) = RState fs t fd (f h) tS
 
 -- Handler de Simbolos
 
-isSymTable :: Tabla -> Bool
+{--isSymTable :: Tabla -> Bool
 isSymTable (SymTable _ _) = True
 isSymTable _ = False
 
 onlySymTable :: [Tabla] -> [Tabla]
 onlySymTable = P.filter (isSymTable)
-
+--}
 
 findSym :: String -> [Tabla] -> Maybe FoundSym
 
@@ -124,7 +131,7 @@ findSym s (x:xs) = case r of Nothing -> findSym s xs
                             where r = M.lookup s (mapa x)
 
 type Pos = Int
-findSymTable :: String -> [Tabla] -> Maybe (Tabla,Pos)
+findSymTable :: String -> [Tabla] -> Int -> Maybe (Tabla,Pos)
 findSymTable s [] _ = Nothing
 findSymTable s (x:xs) n = case r of 
     Nothing -> findSymTable s xs (n+1)
@@ -132,8 +139,8 @@ findSymTable s (x:xs) n = case r of
     where r = M.lookup s (mapa x)
 
 
-insertSym :: String -> ValCalc -> Bool -> Tabla -> Tabla
-insertSym s v b  (SymTable m h) = SymTable (M.insert s (v,b) m) h
+insertSym :: String -> ValCalc -> Type -> Bool -> Tabla -> Tabla
+insertSym s v t b (SymTable m h) = SymTable (M.insert s (v,t,b) m) h
 
 
 
@@ -144,7 +151,7 @@ findFun s m = M.lookup s m
 
 
 insertFunProto :: String -> FunProto -> RState -> RState
-insertFunProto s p (RState fs t fd h) = RState (M.insert s p fs) t fd h
+insertFunProto s p (RState fs t fd h tS) = RState (M.insert s p fs) t fd h tS
 
 -- Tipo y Type Handlers
 getTypeList :: [Out.ParamL] -> [Type]
@@ -157,9 +164,13 @@ fromTipo Out.NumberT = Number
 
 --Utilidad para modificar un handler
 modifyHandler :: (FunHandler -> FunHandler) -> RState -> RState
-modifyHandler f (RState fs t fd h) = RState fs t (f fd) h
+modifyHandler f (RState fs t fd h tS) = RState fs t (f fd) h tS
 
 replace :: Maybe ValCalc -> FunHandler -> FunHandler
 replace v f = FunHandler v 
 
 
+-- Funcion para modificar a la tortuga
+
+modifyTurtle :: (TurtleState -> TurtleState) RState -> RState
+modifyTurtle f (RState fs t fd h tS) = RState fs t fd h (f tS)
