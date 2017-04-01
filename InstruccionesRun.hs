@@ -738,7 +738,7 @@ runAnidS (WriteLn args) = do
     case r of
         False -> do
             runExprS args
-            liftIO (putStr "" >> hFlush stdout)
+            liftIO (putStrLn "" >> hFlush stdout)
         True -> return ()
 
 runAnidS (Return e p) = do

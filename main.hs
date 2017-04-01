@@ -57,10 +57,5 @@ main = do
                     let final = deepseq w w
                     turtle <- execStateT (runInit ast) Run.initialState
                     drawTurtle x $ Run.ts turtle
-                    {-
-                    -- aqui va la corrida probablemente
-                    let turtle = -- aqui va el turtle state
-                    drawTurtle x turtle
-                    -}
 
             
