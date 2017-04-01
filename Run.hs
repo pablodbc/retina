@@ -19,6 +19,8 @@ instance E.Exception RuntimeError
 instance Show RuntimeError where
     show (RuntimeError s) = "Error durante Corrida: " ++ s
 
+type Mutable = Bool
+
 data CompType = Dynamic | Constant deriving (Eq,Show,Ord)
 
 data Type     = Boolean | Number | Void deriving (Eq,Show,Ord)
@@ -26,15 +28,12 @@ data Type     = Boolean | Number | Void deriving (Eq,Show,Ord)
 data ValCalc  = CBoolean Bool | CNumber Double | Nein deriving (Eq,Show,Ord)
 
 
-data Tabla    = ExprTable {tipo :: Type, compType :: CompType, val :: ValCalc} |
-                FuncionTable {rtype :: Type}                                   |
-                SymTable {mapa :: M.Map String (Type,ValCalc), height :: Int}
-                deriving (Eq,Show,Ord)
+data Tabla    = SymTable {mapa :: M.Map String (ValCalc,Mutable), height :: Int} deriving (Eq,Show,Ord)
 
-data FunProto = FunProto {args :: [(String,Type)], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
+data FunProto = FunProto {args :: [String], instrucciones :: [AnidS]} deriving (Eq,Show,Ord)
 
 
-data FunHandler = FunHandler {Maybe ValCalc :: retVal} | None deriving (Eq,Show,Ord)
+data FunHandler = FunHandler {Maybe ValCalc :: retVal} deriving (Eq,Show,Ord)
 
 data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun :: FunHandler, h :: Int, ts :: turtleState} deriving (Eq,Show,Ord)
 
@@ -91,6 +90,9 @@ topTable :: [Tabla] -> Tabla
 topTable [] = error "hola"
 topTable (tabla:tablas) = tabla
 
+replaceAt :: Int -> Tabla -> [Tabla] -> [Tabla]
+replaceAt n x xs = take n xs ++ [x] ++ drop (n+1) xs
+
 modifyTable :: ([Tabla] -> [Tabla]) -> State -> State
 modifyTable f (State fs t fd h) = State fs (f t) fd h
 
@@ -115,8 +117,8 @@ findSym s (x:xs) = case r of Nothing -> findSym s xs
                             where r = M.lookup s (mapa x)
 
 
-insertSym :: Tabla -> String -> Type -> ValCalc -> Tabla
-insertSym (SymTable m h) s t v = SymTable (M.insert s (t,v) m) h
+insertSym :: String -> Bool -> ValCalc -> Tabla -> Tabla
+insertSym s b v (SymTable m h) = SymTable (M.insert s (v,b) m) h
 
 
 

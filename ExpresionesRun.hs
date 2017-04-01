@@ -3,8 +3,8 @@ import qualified Lexer as Lexer
 import Stdout as Out
 import qualified Grammar 
 import Data.Map.Lazy as M
-import Data.Fixed as Fx 
-import Control.Monad.RWS
+import Data.Fixed as Fx
+import Data.Maybe as Mb 
 import Run as Run
 import Control.Exception
 
@@ -40,7 +40,7 @@ anaDecl (Inicializacion t (Lexer.Identifier p s) e) = do
             case t of
                 Out.NumberT -> do
                     put $ modifyTable (pushTable (Run.insertSym symT s Run.Number Run.Nein)) st
-                    anaExpr e
+                    runExpr e
                     st <- get
                     case topTable $ tablas st of
                         Run.ExprTable Run.Boolean _ _ -> do 
@@ -56,7 +56,7 @@ anaDecl (Inicializacion t (Lexer.Identifier p s) e) = do
                             error "Error interno, algo salio mal y no esta la tabla de la expresion"
                 Out.BooleanT -> do
                     put $ modifyTable (pushTable (Run.insertSym symT s Run.Boolean Run.Nein)) st
-                    anaExpr e
+                    runExpr e
                     st <- get
                     case topTable $ tablas st of
                         Run.ExprTable Run.Number _ _ -> do 
@@ -157,28 +157,28 @@ anaID t ((Lexer.Identifier p s):rest) = do
             error "Error interno, algo salio mal y no esta la tabla de la simbolos"
 
 
-anaExprS :: [Out.ExprS] -> Run.RunMonad ()
-anaExprS (x:[]) = do
+runExprS :: [Out.ExprS] -> Run.RunMonad ()
+runExprS (x:[]) = do
     case x of
         (Out.StringW _) -> do
             return ()
         (Out.ExprW e) -> do
-            anaExpr e
+            runExpr e
             st <- get
             put (modifyTable popTable st)
             return ()
-anaExprS (x:xs) = do
+runExprS (x:xs) = do
     case x of
         (Out.StringW _) -> do
-            anaExprS xs
+            runExprS xs
         (Out.ExprW e) -> do
-            anaExpr e
+            runExpr e
             modify (modifyTable popTable)
-            anaExprS xs
+            runExprS xs
 
 
-anaFuncion :: Out.Funcion -> Run.RunMonad ()
-anaFuncion (FuncionSA lt) = do
+runFuncion :: Out.Funcion -> Run.RunMonad ()
+runFuncion (FuncionSA lt) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
@@ -191,17 +191,25 @@ anaFuncion (FuncionSA lt) = do
                                 ++ (Out.printPos p)
                                 ++ " Se esperaba un valor de retorno.")
         Just v -> do 
-            modify(modifyHandler $ backToNone)
             return v
-anaFuncion (FuncionCA lt xprs) = do
+runFuncion (FuncionCA lt xprs) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
     let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
-    
+    mapM_ loadArg $ zip (args f) xprs
         anaArgs a xprs p s
         put ( modifyTable (pushTable (Run.FuncionTable t)) st )
         return ()
+
+
+
+loadArg :: ((String,Type),Expr) -> RunMonad ()
+loadArg ((s,t),e) = do
+    st <- get
+    let symT = topTable $ tablas st
+    modify(popTable $ tablas)
+
 
 anaArgs :: [Type] -> [Expr] -> Lexer.AlexPosn -> String -> Run.RunMonad ()
 anaArgs [] [] _ _= do
@@ -214,7 +222,7 @@ anaArgs [] x p s = do throw $ Run.RunError ("Cerca de la siguiente posicion"
                                             ++ (Out.printPos p)
                                             ++ " funcion: " ++ s ++ " tiene demasiados argumentos")
 anaArgs (a:args) (x:xprs) p s = do
-    anaExpr x
+    runExpr x
     st <- get
     put $ modifyTable popTable st
     let tp = tipo $ topTable $ tablas st
@@ -225,70 +233,70 @@ anaArgs (a:args) (x:xprs) p s = do
                                             ++ (Out.printPos p)
                                             ++ " funcion: " ++ s ++ " presenta un desajuste de tipos")
 
-anaExpr :: Out.Expr -> RunMonad Run.ValCalc
-anaExpr (Out.Or e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr :: Out.Expr -> RunMonad Run.ValCalc
+runExpr (Out.Or e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateBoolValCalc (||) r1 r2)
 
-anaExpr (Out.And e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.And e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateBoolValCalc (&&) r1 r2)
 
-anaExpr (Out.Eq e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Eq e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r1 of
         (Run.CBoolean b1) -> return (Run.modifyBoolValCalc (== b1) r2)
         (Run.CNumber n1) -> return (Run.modifyDoubleValCalc (== n1) r2)
 
 
-anaExpr (Out.Neq e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Neq e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r1 of
         (Run.CBoolean b1) -> return (Run.modifyBoolValCalc (/= b1) r2)
         (Run.CNumber n1) -> return (Run.modifyDoubleValCalc (/= n1) r2)
 
-anaExpr (Out.Less e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Less e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (<) r1 r2)
 
-anaExpr (Out.Lesseq e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Lesseq e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (<=) r1 r2)
 
-anaExpr (Out.More e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.More e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (>) r1 r2)
 
-anaExpr (Out.Moreq e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Moreq e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (>=) r1 r2)
 
-anaExpr (Out.Plus e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Plus e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (+) r1 r2)
 
-anaExpr (Out.Minus e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Minus e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (-) r1 r2)
 
-anaExpr (Out.Mult e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Mult e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     return (Run.operateDoubleValCalc (*) r1 r2)
 
-anaExpr (Out.Divex e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Divex e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r2 of
         (Run.CNumber 0) -> do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
@@ -298,9 +306,9 @@ anaExpr (Out.Divex e1 e2 p) = do
 
 
 
-anaExpr (Out.Modex e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Modex e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r2 of
         (Run.CNumber 0) -> do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
@@ -308,9 +316,9 @@ anaExpr (Out.Modex e1 e2 p) = do
                                     ++ " en Operacion '%', division entre 0")
         (Run.CNumber n2) -> return (Run.operateDoubleValCalc (Fx.mod') r1 r2)
 
-anaExpr (Out.Div e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Div e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r2 of
         (Run.CNumber 0) -> do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
@@ -318,9 +326,9 @@ anaExpr (Out.Div e1 e2 p) = do
                                     ++ " en Operacion '/', division entre 0")
         (Run.CNumber n2) -> return (Run.operateDoubleValCalc div r1 r2)
 
-anaExpr (Out.Mod e1 e2 p) = do
-    r1 <- anaExpr e1
-    r2 <- anaExpr e2
+runExpr (Out.Mod e1 e2 p) = do
+    r1 <- runExpr e1
+    r2 <- runExpr e2
     case r2 of
         (Run.CNumber 0) -> do
             throw $ Run.RuntimeError ("Cerca de la siguiente posicion" 
@@ -329,30 +337,30 @@ anaExpr (Out.Mod e1 e2 p) = do
         (Run.CNumber n2) -> return (Run.operateDoubleValCalc mod r1 r2)
 
 
-anaExpr (Out.Not e p) = do
-    r <- anaExpr e
+runExpr (Out.Not e p) = do
+    r <- runExpr e
     return $ modifyBoolValCalc not r
 
-anaExpr (Out.Uminus e p) = do
-    r <- anaExpr e
+runExpr (Out.Uminus e p) = do
+    r <- runExpr e
     return $ modifyBoolValCalc ((-1)*) r
 
-anaExpr (Out.Identifier i@(Lexer.Identifier p s)) = do
+runExpr (Out.Identifier i@(Lexer.Identifier p s)) = do
     st <- get
-    let r = (\(Just k) -> k) $ findSym s (onlySymTable(tablas st))
+    let r = fromJust $ findSym s (onlySymTable(tablas st))
     return $ valor r 
 
-anaExpr (Out.Integer (Lexer.Integer _ s)) = return (Run.CNumber (read s))
+runExpr (Out.Integer (Lexer.Integer _ s)) = return (Run.CNumber (read s))
 
-anaExpr (Out.Floating (Lexer.Floating _ s)) = return (Run.CNumber (read s))
+runExpr (Out.Floating (Lexer.Floating _ s)) = return (Run.CNumber (read s))
 
-anaExpr (Out.ExpTrue (Lexer.True' _ s)) = return (Run.CBoolean True)
+runExpr (Out.ExpTrue (Lexer.True' _ s)) = return (Run.CBoolean True)
 
-anaExpr (Out.ExpFalse (Lexer.False' _ s)) = return (Run.CBoolean False)
+runExpr (Out.ExpFalse (Lexer.False' _ s)) = return (Run.CBoolean False)
 
-anaExpr (Out.ExpFcall f) = return (anaFuncion f)
+runExpr (Out.ExpFcall f) = return (anaFuncion f)
 
-anaExpr (Out.Bracket e) = anaExpr e
+runExpr (Out.Bracket e) = runExpr e
 
 
 
