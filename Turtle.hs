@@ -292,7 +292,7 @@ drawTurtleTest st = writeFile "retina.pbm" (showTurtle st)
 drawTurtle :: String -> TurtleState -> IO ()
 drawTurtle s st = writeFile s' (showTurtle st)
 	where 
-		s' = reverse $ cutByDot $ reverse s 
+		s' = (reverse $ cutByDot $ reverse s) ++ ".pbm" 
 
 
 cutByDot :: String -> String
