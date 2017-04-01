@@ -2,7 +2,7 @@ module ExpresionesRun where
 import qualified Lexer as Lexer
 import Stdout as Out
 import qualified Grammar 
-import Data.Map.Lazy as M
+import Data.Map.Strict as M
 import Data.Fixed as Fx
 import Data.Maybe as Mb 
 import Run as Run
