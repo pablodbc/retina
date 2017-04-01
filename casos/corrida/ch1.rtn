@@ -8,7 +8,7 @@ begin
 
 		forward(radio);
 		arc(180, 3);
-		draw(radio * 0.9);
+		draw(radio * 0.6);
 		backward(radio);
 
 		writeln "Hijo Derecho";
@@ -16,7 +16,7 @@ begin
 
 		forward(radio);
 		arc(180, 3);;
-		draw(radio * 0.9);
+		draw(radio * 0.6);
 		backward(radio);
 
 		rotatel(45);
@@ -28,7 +28,7 @@ begin
 end;
 program
     for l from 0 to 360 by 90 do
-    	draw(500);
+    	draw(200);
     	rotatel(90);
     end;
 end;
