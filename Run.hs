@@ -39,7 +39,7 @@ data State = State {funcs :: M.Map String FunProto, tablas :: [Tabla], curFun ::
 
 
 
-data FoundSym = FoundSym {t :: Type, valor :: ValCalc, altura :: Int} deriving (Eq,Show,Ord)
+data FoundSym = FoundSym {valor :: ValCalc, altura :: Int, mutable :: Mutable} deriving (Eq,Show,Ord)
 
 
 -- Monad que usaremos para hacer estas cosas. El primer tipo es arbitrario (Reader maneja el separador)
@@ -74,6 +74,12 @@ comparisonFunNum f x y = CBoolean (f x y)
 
 comparisonFunBool :: (Bool -> Bool -> Bool) -> Bool -> Bool, ts :: turtleState -> ValCalc
 comparisonFunBool f x y = CBoolean (f x y)
+
+fromCNumber :: ValCalc -> Double
+fromCNumber (CNumber n) = n
+
+fromCBoolean :: ValCalc -> Bool
+fromCNumber (CBoolean b) = b
 
 
 
@@ -113,12 +119,20 @@ findSym :: String -> [Tabla] -> Maybe FoundSym
 
 findSym _ [] = Nothing
 findSym s (x:xs) = case r of Nothing -> findSym s xs
-                             Just (t,v) -> return(FoundSym t v (height x))
+                             Just (v,b) -> return(FoundSym v (height x) b)
                             where r = M.lookup s (mapa x)
 
+type Pos = Int
+findSymTable :: String -> [Tabla] -> Maybe (Tabla,Pos)
+findSymTable s [] _ = Nothing
+findSymTable s (x:xs) n = case r of 
+    Nothing -> findSymTable s xs (n+1)
+    Just (v,b) -> return((x,n))
+    where r = M.lookup s (mapa x)
 
-insertSym :: String -> Bool -> ValCalc -> Tabla -> Tabla
-insertSym s b v (SymTable m h) = SymTable (M.insert s (v,b) m) h
+
+insertSym :: String -> ValCalc -> Bool -> Tabla -> Tabla
+insertSym s v b  (SymTable m h) = SymTable (M.insert s (v,b) m) h
 
 
 
@@ -144,11 +158,8 @@ fromTipo Out.NumberT = Number
 modifyHandler :: (FunHandler -> FunHandler) -> State -> State
 modifyHandler f (State fs t fd h) = State fs t (f fd) h
 
-replace :: String -> Bool -> FunHandler -> FunHandler
-replace s b _ = FunHandler s b
-
-backToNone :: FunHandler -> FunHandler
-backToNone = (\_ -> None)
+replace :: Maybe ValCalc -> FunHandler -> FunHandler
+replace v f = FunHandler v 
 
 
 -- Utilidad para saber si una variable esta presente en su propia declaracion

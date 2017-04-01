@@ -177,61 +177,55 @@ runExprS (x:xs) = do
             runExprS xs
 
 
-runFuncion :: Out.Funcion -> Run.RunMonad ()
+runFuncion :: Out.Funcion -> Run.RunMonad ValCalc
 runFuncion (FuncionSA lt) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
     let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
-    mapM_ runInstruccion $ instrucciones f
+    modify $ modifyTable (pushTable (SymTable M.empty (h st)))
+    mapM_ runAnidS $ instrucciones f
     st <- get
     case retVal $ curFun st of
         Nothing -> do
             throw $ RunError ("Cerca de la siguiente posicion "
                                 ++ (Out.printPos p)
                                 ++ " Se esperaba un valor de retorno.")
-        Just v -> do 
+        Just v -> do
+            modify $ modifyTable popTable 
+            modify $ modifyHandler $ replace Nothing
             return v
 runFuncion (FuncionCA lt xprs) = do
     let p = takePos lt
     let s = takeStr lt
     st <- get
     let f = (\(Just k) -> k) $ Run.findFun s (funcs st)
-    mapM_ loadArg $ zip (args f) xprs
-        anaArgs a xprs p s
-        put ( modifyTable (pushTable (Run.FuncionTable t)) st )
-        return ()
-
-
-
-loadArg :: ((String,Type),Expr) -> RunMonad ()
-loadArg ((s,t),e) = do
+    modify $ modifyTable (pushTable (SymTable M.empty (h st)))
+    loadArgs (args f) xprs
+    mapM_ runAnidS $ instrucciones f
     st <- get
+    case retVal $ curFun st of
+        Nothing -> do
+            throw $ RunError ("Cerca de la siguiente posicion "
+                                ++ (Out.printPos p)
+                                ++ " Se esperaba un valor de retorno.")
+        Just v -> do
+            modify $ modifyTable popTable
+            modify $ modifyHandler $ replace Nothing
+            return v
+
+
+loadArgs :: [String] -> [Expr] -> RunMonad ()
+loadArgs [] [] = return ()
+loadArgs (s:ss) (e:exs) = do
+    st <- get
+    v <- runExpr e
     let symT = topTable $ tablas st
-    modify(popTable $ tablas)
+    modify $ popTable $ tablas
+    let symT' = (SymTable (insert s (v,True) $ mapa symT) $ height symT)
+    modify $ pushTable symT'
+    loadArgs ss exs
 
-
-anaArgs :: [Type] -> [Expr] -> Lexer.AlexPosn -> String -> Run.RunMonad ()
-anaArgs [] [] _ _= do
-    return ()
-anaArgs a [] p s = do throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " funcion: " ++ s ++ " le faltan argumentos")
-
-anaArgs [] x p s = do throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " funcion: " ++ s ++ " tiene demasiados argumentos")
-anaArgs (a:args) (x:xprs) p s = do
-    runExpr x
-    st <- get
-    put $ modifyTable popTable st
-    let tp = tipo $ topTable $ tablas st
-    
-    case tp == a of
-        True -> anaArgs args xprs p s
-        False -> do throw $ Run.RunError ("Cerca de la siguiente posicion" 
-                                            ++ (Out.printPos p)
-                                            ++ " funcion: " ++ s ++ " presenta un desajuste de tipos")
 
 runExpr :: Out.Expr -> RunMonad Run.ValCalc
 runExpr (Out.Or e1 e2 p) = do
@@ -358,7 +352,7 @@ runExpr (Out.ExpTrue (Lexer.True' _ s)) = return (Run.CBoolean True)
 
 runExpr (Out.ExpFalse (Lexer.False' _ s)) = return (Run.CBoolean False)
 
-runExpr (Out.ExpFcall f) = return (anaFuncion f)
+runExpr (Out.ExpFcall f) = return (runFuncion f)
 
 runExpr (Out.Bracket e) = runExpr e
 
