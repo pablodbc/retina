@@ -176,5 +176,5 @@ replace v f = FunHandler v
 
 -- Funcion para modificar a la tortuga
 
-modifyTurtle :: (TurtleState -> TurtleState) RState -> RState
+modifyTurtle :: (Tr.TurtleState -> Tr.TurtleState) -> RState -> RState
 modifyTurtle f (RState fs t fd h tS) = RState fs t fd h (f tS)
