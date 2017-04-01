@@ -20,3 +20,6 @@ cabal.project.local
 resultados
 errores
 retina.pbm
+retina
+Grammar.hs
+Lexer.hs
