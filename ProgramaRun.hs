@@ -1,4 +1,4 @@
-module Programa where
+module ProgramaRun where
 import qualified Lexer as Lexer
 import Stdout as Out
 import qualified Grammar 
@@ -22,21 +22,21 @@ runFunDec (Out.Func idt@(Lexer.Identifier p s) params t ins) = do
 
 
 
-anaInit :: Init -> RunMonad ()
+runInit :: Init -> RunMonad ()
 
-anaInit (Program [] []) = do
+runInit (Program [] []) = do
     return ()
 
-anaInit (Program [] ins) = do
+runInit (Program [] ins) = do
     modify $ modifyHeight (+1)
     mapM_ runAnidS ins
     modify $ modifyHeight (\x -> x-1)
     return $! ()
 
-anaInit (Program fs []) = do
+runInit (Program fs []) = do
     return $! ()
 
-anaInit (Program fs ins) = do
+runInit (Program fs ins) = do
     mapM_ runFunDec fs
     modify $ modifyHandler $ replace Nothing
     modify $ modifyHeight (+1)

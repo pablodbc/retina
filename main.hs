@@ -12,6 +12,10 @@ import Programa as Programa
 import Control.Monad.RWS
 import Control.Monad.State.Strict
 import Control.DeepSeq
+import InstruccionesRun
+import Turtle 
+import Circle
+import ProgramaRun
 
 
 argError :: [String] -> Either String String
